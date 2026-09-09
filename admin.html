@@ -182,6 +182,7 @@
             container.innerHTML = tasks.map(task => {
                 const currentStatus = task.processStatus || '製作中';
                 const currentRemark = task.remark || '';
+                const sceneName = task.sceneName || '舊版未指定情境';
                 const userChoiceHtml = task.chosenDesign 
                     ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-black text-xs"><i class="fa-solid fa-circle-check mr-1"></i> 已確認：[ 風格 ${task.chosenDesign} 款 ]</span>`
                     : `<span class="text-amber-400 font-bold animate-pulse text-xs"><i class="fa-solid fa-hourglass-start mr-1"></i> 客人二選一中...</span>`;
@@ -202,6 +203,7 @@
                             <span class="text-[10px] font-mono tracking-widest text-cyan-400 block font-bold">QUEUE NO</span>
                             <span class="text-4xl font-black text-white font-mono glow-text">#${task.id}</span>
                             <div class="text-[9px] text-slate-500 font-mono mt-1">${task.createdAt || '--:--'}</div>
+                            <div class="text-[9px] text-cyan-300 mt-2 leading-tight">${sceneName}</div>
                         </div>
                         <div class="text-center relative w-full mt-1">
                             ${task.sourceImage ? `<img src="${task.sourceImage}" class="w-20 h-20 mx-auto object-cover rounded-xl border border-slate-700 bg-black shadow-inner" /><button onclick="downloadSourceImage('${task.id}')" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1"><i class="fa-solid fa-download"></i> 下載原照</button>` : `<div class="w-20 h-20 rounded-xl border border-dashed border-slate-700 bg-black flex flex-col items-center justify-center text-slate-500 mx-auto"><i class="fa-solid fa-spinner animate-spin text-lg mb-1"></i><span class="text-[9px]">傳輸中...</span></div>`}
