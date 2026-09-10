@@ -155,9 +155,9 @@
         // B 機專用後端。請勿改回 A 機服務。
         const API_BASE_URL = "https://aicamera-backend-b.onrender.com";
         const SCENES = (window.BOOTH_IPS || []).map(ip => ({...ip, guide: {
-            zh: "請正面看鏡頭、自然微笑。我們會將您與選擇的夥伴一起畫進方舟，產生水彩和超 Q 兩款合影。",
-            jp: "正面を向いて笑ってください。選んだ仲間と一緒に方舟に乗る、水彩とちびキャラの2種類を描きます。",
-            en: "Face the camera and smile. AI will draw you aboard the ark with your chosen buddy in two styles."
+            zh: "請正面看鏡頭、自然微笑。我們會將您與選擇的夥伴一起畫進方舟，產生一張專屬合影。",
+            jp: "正面を向いて笑ってください。選んだ仲間と一緒に方舟に乗る、一枚の記念イラストを描きます。",
+            en: "Face the camera and smile. AI will draw you aboard the ark with your chosen buddy in one illustration."
         }}));
 
         // 多語系字典 (Traditional Chinese, English, Japanese)
@@ -173,19 +173,17 @@
                 takePhotoBtn: "拍攝照片",
                 cancelBtn: "取消返回首頁",
                 cancelSub: "返回首頁",
-                pickStyleTitle: "✨ 請挑選較喜歡的合影 ✨",
-                styleA: "【 水彩互動版 】",
-                styleB: "【 超 Q 互動版 】",
+                pickStyleTitle: "✨ 請確認您的合影 ✨",
                 discardBtn: "放棄",
                 confirmBtn: "確定",
                 processing: "處理中...",
-                submittedTitle: "選擇已送出",
-                submittedSub: "選擇已送出",
+                submittedTitle: "合影已送出",
+                submittedSub: "合影已送出",
                 queueLabel: "您的專屬號碼",
                 scanLabel: "掃碼下載頭像",
                 scanGuide: "請用手機相機掃描 QR Code",
                 autoReturn: "秒後自動返回",
-                loadingTexts: ["正在準備您的互動合影", "參考您的外觀與角色造型", "描繪一起乘船的互動", "生成水彩與超 Q 兩款畫風", "即將完成專屬合影"],
+                loadingTexts: ["正在準備您的互動合影", "參考您的外觀與角色造型", "描繪一起乘船的互動", "正在繪製專屬合影", "即將完成專屬合影"],
                 loadingSubTexts: [
                     "系統載入中...",
                     "特徵萃取中...",
@@ -205,9 +203,7 @@
                 takePhotoBtn: "撮影する",
                 cancelBtn: "キャンセル",
                 cancelSub: "トップへ戻る",
-                pickStyleTitle: "✨ お気に入りのスタイルをお選びください ✨",
-                styleA: "【 水彩イラスト 】",
-                styleB: "【 スーパーちび版 】",
+                pickStyleTitle: "✨ 写真をご確認ください ✨",
                 discardBtn: "やめる",
                 confirmBtn: "確定する",
                 processing: "処理中...",
@@ -217,7 +213,7 @@
                 scanLabel: "QRコードで保存",
                 scanGuide: "スマホのカメラで読み取ってください",
                 autoReturn: "秒後に自動で戻ります",
-                loadingTexts: ["写真を準備しています", "あなたとキャラクターを確認中", "一緒に方舟に乗る場面を描いています", "水彩とちびキャラを作成中", "もうすぐ完成です"],
+                loadingTexts: ["写真を準備しています", "あなたとキャラクターを確認中", "一緒に方舟に乗る場面を描いています", "記念イラストを作成中", "もうすぐ完成です"],
                 loadingSubTexts: [
                     "処理中...",
                     "抽出中...",
@@ -237,19 +233,17 @@
                 takePhotoBtn: "TAKE PHOTO",
                 cancelBtn: "CANCEL",
                 cancelSub: "RETURN TO HOME",
-                pickStyleTitle: "✨ Please Select Your Favorite Style ✨",
-                styleA: "【 Watercolor 】",
-                styleB: "【 Super Chibi 】",
+                pickStyleTitle: "✨ Preview Your Photo ✨",
                 discardBtn: "CANCEL",
                 confirmBtn: "CONFIRM",
                 processing: "Processing...",
-                submittedTitle: "Selection Submitted",
-                submittedSub: "Selection Completed",
+                submittedTitle: "Photo Submitted",
+                submittedSub: "Photo Submitted",
                 queueLabel: "YOUR QUEUE NUMBER",
                 scanLabel: "Scan to Download",
                 scanGuide: "Use your Phone Camera to Scan",
                 autoReturn: "s Auto-Return",
-                loadingTexts: ["Preparing your photo", "Referencing you and the character", "Drawing your shared boat ride", "Creating watercolor and super-chibi styles", "Your pictures are almost ready"],
+                loadingTexts: ["Preparing your photo", "Referencing you and the character", "Drawing your shared boat ride", "Creating your illustration", "Your picture is almost ready"],
                 loadingSubTexts: [
                     "PLEASE WAIT...",
                     "PROCESSING...",
@@ -264,9 +258,9 @@
             const [step, setStep] = useState('home');
             const [lang, setLang] = useState('zh'); // 🌟 預設語言改為繁體中文 'zh'
             const [taskId, setTaskId] = useState(null);
-            const [imgA, setImgA] = useState(null);
+            const [needsReview, setNeedsReview] = useState(false);
             const [imgB, setImgB] = useState(null);
-            const [selectedChoice, setSelectedChoice] = useState(null);
+            
             const [cameraError, setCameraError] = useState(false);
             const [selectedSceneId, setSelectedSceneId] = useState(null);
 
@@ -332,7 +326,8 @@
                 if (stream) stream.getTracks().forEach(t => t.stop());
                 setStream(null);
                 setStep('loading');
-                setSelectedChoice(null);
+                setImgB(null);
+                setNeedsReview(false);
 
                 try {
                     const res = await fetch(API_BASE_URL + "/api/upload", {
@@ -351,14 +346,14 @@
             };
 
             const finalizeChoice = async () => {
-                if (!selectedChoice) return;
+                if (!imgB || needsReview) return;
                 setIsSubmitting(true);
                 
                 try {
                     const response = await fetch(API_BASE_URL + "/api/choice/" + taskId, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ choice: selectedChoice })
+                        body: JSON.stringify({ choice: 'B' })
                     });
                     const data=await response.json();
                     if(!response.ok || !data.success)throw new Error(data.error || '送出失敗');
@@ -379,6 +374,8 @@
                 if (stream) stream.getTracks().forEach(t => t.stop());
                 setStream(null);
                 setTaskId(null);
+                setImgB(null);
+                setNeedsReview(false);
                 setCameraError(false);
                 setStep('home');
             };
@@ -412,37 +409,28 @@
             }, [step, returnCountdown]);
 
             useEffect(() => {
-                let textInterval;
-                if (step === 'loading') {
-                    textInterval = setInterval(() => { setTextIndex(p => (p + 1) % t.loadingTexts.length); }, 1500);
-
-                    if (taskId) {
-                        pollingRef.current = setInterval(async () => {
-                            try {
-                                const res = await fetch(API_BASE_URL + "/api/status/" + taskId);
-                                const data = await res.json();
-                                if (data.status === 'failed') {
-                                    clearInterval(pollingRef.current);
-                                    alert(data.error || '生成失敗，請洽工作人員');
-                                    setStep('home');
-                                    return;
-                                }
-                                if (['completed', 'partial'].includes(data.status) && (data.resultImageA || data.resultImageB)) {
-                                    setImgA(data.resultImageA);
-                                    setImgB(data.resultImageB);
-                                    setStep('choice');
-                                    clearInterval(pollingRef.current);
-                                }
-                            } catch (err) {
-                                console.warn('暫時無法查詢生成進度，稍後重試', err);
-                            }
-                        }, 3000);
-                    }
-                }
-                return () => { 
-                    clearInterval(textInterval); 
-                    if(pollingRef.current) clearInterval(pollingRef.current); 
+                if (!['loading','choice'].includes(step) || !taskId) return;
+                let active=true, busy=false;
+                const textInterval=step==='loading' ? setInterval(() => setTextIndex(p => (p+1)%t.loadingTexts.length),1500) : null;
+                const poll=async () => {
+                    if(busy)return;busy=true;
+                    try {
+                        const response=await fetch(API_BASE_URL + '/api/status/' + taskId);
+                        if(!response.ok)return;
+                        const data=await response.json();
+                        if(!active)return;
+                        if(['completed','partial','failed'].includes(data.status)) {
+                            const ready=data.printStatusB==='ready' && !!data.resultImageB;
+                            setImgB(ready ? data.resultImageB : null);
+                            setNeedsReview(!ready);
+                            if(step==='loading')setStep('choice');
+                        }
+                    } catch(error){console.warn('暫時無法查詢合影，稍後重試');}
+                    finally{busy=false;}
                 };
+                pollingRef.current=setInterval(poll,3000);
+                poll();
+                return () => {active=false;clearInterval(textInterval);clearInterval(pollingRef.current);};
             }, [step, taskId, lang]);
 
             return (
@@ -540,25 +528,23 @@
                                 <div className="text-center mb-6">
                                     <p className="text-ai-cyan text-lg sm:text-2xl font-bold tracking-widest animate-pulse">{t.pickStyleTitle}</p>
                                 </div>
-                                <div className="grid grid-cols-2 gap-6 w-full mb-8">
-                                    <div onClick={() => imgA && setSelectedChoice('A')} aria-disabled={!imgA} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'A' ? 'selected' : ''}`}>
-                                        {imgA ? <img src={imgA} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style A" />: <div className="w-full aspect-[4/3] flex items-center justify-center text-slate-400">{{zh:"此款未完成，請選另一款",jp:"もう一方を選んでください",en:"Please choose the other style"}[lang]}</div>}
-                                        <span className="text-sm sm:text-2xl font-black tracking-wider block">{t.styleA}</span>
-                                    </div>
-                                    <div onClick={() => imgB && setSelectedChoice('B')} aria-disabled={!imgB} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'B' ? 'selected' : ''}`}>
-                                        {imgB ? <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style B" />: <div className="w-full aspect-[4/3] flex items-center justify-center text-slate-400">{{zh:"此款未完成，請選另一款",jp:"もう一方を選んでください",en:"Please choose the other style"}[lang]}</div>}
-                                        <span className="text-sm sm:text-2xl font-black tracking-wider block">{t.styleB}</span>
-                                    </div>
+                                <div className="w-full max-w-[760px] mb-8 p-3 rounded-3xl border-2 border-cyan-400 bg-slate-900/70">
+                                    {imgB && !needsReview ? <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl" alt={t.avatarLabel} /> :
+                                    <div role="status" className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-4 text-center p-6">
+                                        <p className="text-xl font-bold">{{zh:'合影需要工作人員協助確認',jp:'スタッフが写真を確認しています',en:'Staff are checking your photo'}[lang]}</p>
+                                        <p className="text-4xl font-mono">#{taskId}</p>
+                                        <p className="text-slate-300">{{zh:'請告知工作人員您的號碼，無需重新拍照',jp:'この番号をスタッフにお伝えください。再撮影は不要です',en:'Show this number to staff. No new photo is needed.'}[lang]}</p>
+                                    </div>}
                                 </div>
                                 <div className="flex gap-6 w-full sm:max-w-[700px]">
                                     <button onClick={handleCancelAndGoHome} className="btn-cyan flex-1 py-4 rounded-2xl text-xs sm:text-xl font-bold flex flex-col items-center justify-center">
                                         <span>{t.discardBtn}</span>
                                     </button>
                                     <button 
-                                        disabled={!selectedChoice || isSubmitting} 
+                                        disabled={!imgB || needsReview || isSubmitting} 
                                         onClick={finalizeChoice} 
                                         className={`flex-[2.5] py-4 rounded-2xl text-base sm:text-2xl font-black transition-all duration-300 flex flex-col items-center justify-center ${
-                                            selectedChoice 
+                                            imgB && !needsReview 
                                                 ? 'btn-cyan bg-cyan-400 text-slate-950 shadow-[0_0_35px_rgba(0,242,255,0.5)]' 
                                                 : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
                                         }`}
@@ -576,7 +562,7 @@
                                 <div className="bg-[#0f172a]/85 border-2 border-ai-cyan p-6 sm:p-8 rounded-[2.5rem] w-full mb-6 shadow-[0_0_45px_rgba(0,242,255,0.3)] flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
                                     
                                     <div className="flex flex-col items-center">
-                                        <img src={selectedChoice === 'A' ? imgA : imgB} className="w-56 sm:w-72 aspect-[4/3] object-contain rounded-3xl mb-4 border-2 border-slate-700 shadow-lg" alt="Selected Style" />
+                                        <img src={imgB} className="w-56 sm:w-72 aspect-[4/3] object-contain rounded-3xl mb-4 border-2 border-slate-700 shadow-lg" alt="Selected Style" />
                                         <p className="text-xs sm:text-sm text-slate-400 tracking-[0.2em] font-bold">{t.queueLabel}</p>
                                         <p className="text-5xl sm:text-7xl font-black text-white font-mono drop-shadow-[0_0_20px_#00f2ff]">#{taskId}</p>
                                     </div>

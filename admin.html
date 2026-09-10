@@ -102,6 +102,15 @@
             finally{if(button){button.disabled=false;button.textContent='重新處理原圖（不重新產圖）';}}
         }
 
+        async function approveResult(taskId,choice) {
+            if(!confirm('請確認透明背景、人物與 IP 完整、沒有粉紅色邊，再提供賓客預覽。'))return;
+            try {
+                const response=await fetch(`${API_BASE_URL}/api/admin/approve-result/${taskId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({choice,confirmed:true})});
+                const data=await response.json();if(!response.ok||!data.success)throw Error(data.error||'確認失敗');
+                await fetchAllTasks();
+            }catch(error){alert(error.message);}
+        }
+
         function downloadSourceImage(taskId) {
             const task = localTasksCache[taskId]; if (!task || !task.sourceImage) return;
             const link = document.createElement('a'); link.href = task.sourceImage; link.download = `客照_B_#${taskId}.jpg`;
@@ -126,11 +135,11 @@
                     const res = await fetch(`${API_BASE_URL}/api/admin/upload-result-dual/${taskId}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData)
                     });
-                    if ((await res.json()).success) {
-                        if (!localTasksCache[taskId]) localTasksCache[taskId] = {};
-                        localTasksCache[taskId][`resultImage${type}`] = compressedBase64; fetchAllTasks();
-                    }
-                } catch (err) { fetchAllTasks(); }
+                    const data=await res.json();
+                    if(!res.ok || !data.success)throw Error(data.error||'上傳失敗');
+                    if(localTasksCache[taskId])delete localTasksCache[taskId][`resultImage${type}`];
+                    await fetchAllTasks();
+                } catch (err) { alert(err.message);fetchAllTasks(); }
             });
         }
 
@@ -180,7 +189,7 @@
                         }
                         localTasksCache[t.id] = t; 
                         if (t.hasSourceImage && !localTasksCache[t.id].sourceImage) fetchSourceImageIncrementally(t.id);
-                        if ((t.hasResultImageA || t.hasResultImageB) && (!localTasksCache[t.id].resultImageA || !localTasksCache[t.id].resultImageB)) fetchResultImageIncrementally(t.id);
+                        if ((t.hasResultImageA && !localTasksCache[t.id].resultImageA) || (t.hasResultImageB && !localTasksCache[t.id].resultImageB)) fetchResultImageIncrementally(t.id);
                     });
                     renderTasks(Object.values(localTasksCache).sort((a, b) => b.id.localeCompare(a.id)));
                 }
@@ -198,15 +207,27 @@
                 const currentRemark = task.remark || '';
                 const sceneName = task.sceneName || '舊版未指定情境';
                 const userChoiceHtml = task.chosenDesign 
-                    ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-black text-xs"><i class="fa-solid fa-circle-check mr-1"></i> 已確認：[ 風格 ${task.chosenDesign} 款 ]</span>`
-                    : `<span class="text-amber-400 font-bold animate-pulse text-xs"><i class="fa-solid fa-hourglass-start mr-1"></i> 客人二選一中...</span>`;
+                    ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-black text-xs"><i class="fa-solid fa-circle-check mr-1"></i> 已確認合影</span>`
+                    : `<span class="text-amber-400 font-bold animate-pulse text-xs"><i class="fa-solid fa-hourglass-start mr-1"></i> 等待賓客確認...</span>`;
 
+                const single=task.styleMode==='chibi-only';
+                const reviewHtml=(single?['B']:['A','B']).map(side=>{
+                    const image=task[`resultImage${side}`],review=task[`printStatus${side}`]==='review';
+                    const label=single?'合影':`${side} 款`;
+                    return `<div class="flex flex-col items-center gap-2 w-full">
+                        ${image?`<img src="${image}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
+                        ${image?`<button onclick="downloadResultImage('${task.id}','${side}')" class="text-xs text-cyan-300 underline">下載${review?'待確認':'預覽'}圖檔</button>`:''}
+                        ${review?'<span class="text-xs text-amber-400">需確認背景、色邊與完整構圖</span>':''}
+                        ${review && image?.startsWith('data:image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，提供賓客預覽</button>`:''}
+                        <button onclick="triggerDualUpload('${task.id}','${side}')" class="upload-zone border border-dashed border-cyan-500/40 rounded p-2 text-xs">補傳${label}</button>
+                    </div>`;
+                }).join('');
                 const needsReview=task[`printStatus${task.chosenDesign}`] === 'review';
                 const chosenImgSrc = task.chosenDesign === 'A' ? task.resultImageA : task.resultImageB;
                 const retryHtml=(task.originalGenerationUrlA || task.originalGenerationUrlB) ? `<button id="reprocess-${task.id}" onclick="reprocessTask('${task.id}')" class="mt-2 text-xs border border-cyan-500 rounded p-2 text-cyan-300">重新處理原圖（不重新產圖）</button>` : '';
                 const finalResultHtml = task.chosenDesign ? (
                     chosenImgSrc ? `
-                        <span class="text-[10px] font-bold text-emerald-400 mb-1 text-center w-full block font-sans"><i class="fa-solid fa-trophy mr-1 text-emerald-400"></i> 客人已選: ${task.chosenDesign} 款</span>
+                        <span class="text-[10px] font-bold text-emerald-400 mb-1 text-center w-full block font-sans"><i class="fa-solid fa-trophy mr-1 text-emerald-400"></i> 賓客已確認</span>
                         <img src="${chosenImgSrc}" class="w-24 h-24 object-contain bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] mx-auto" />
                         <button onclick="downloadResultImage('${task.id}', '${task.chosenDesign}')" class="w-full mt-2 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1 border border-emerald-500/50"><i class="fa-solid fa-download"></i> ${needsReview ? '下載待確認圖檔' : '下載印製圖檔'}</button>
                         ${needsReview ? '<p class="text-amber-400 text-xs mt-1">需檢查背景與裁切；此檔不保證可直接印製</p>' : ''}
@@ -227,11 +248,8 @@
                         </div>
                     </div>
                     <div class="flex flex-col gap-2 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center">
-                        <span class="text-[11px] font-bold text-slate-300 text-center mb-1"><i class="fa-solid fa-upload text-cyan-400 mr-1"></i> 上傳 AI 風格圖</span>
-                        <div class="flex gap-3 justify-center">
-                            <div class="text-center w-full"><span class="text-[9px] block text-slate-400 mb-1 font-bold">A 款</span><button onclick="triggerDualUpload('${task.id}', 'A')" class="upload-zone w-full h-14 rounded-lg border border-dashed ${task.resultImageA ? 'border-emerald-500 bg-emerald-950/20' : 'border-cyan-500/40 bg-slate-900'} flex items-center justify-center text-[11px] cursor-pointer">${task.resultImageA ? `<i class="fa-solid fa-check text-emerald-400 text-xl"></i>` : `<i class="fa-solid fa-plus text-cyan-400"></i>`}</button></div>
-                            <div class="text-center w-full"><span class="text-[9px] block text-slate-400 mb-1 font-bold">B 款</span><button onclick="triggerDualUpload('${task.id}', 'B')" class="upload-zone w-full h-14 rounded-lg border border-dashed ${task.resultImageB ? 'border-emerald-500 bg-emerald-950/20' : 'border-cyan-500/40 bg-slate-900'} flex items-center justify-center text-[11px] cursor-pointer">${task.resultImageB ? `<i class="fa-solid fa-check text-emerald-400 text-xl"></i>` : `<i class="fa-solid fa-plus text-cyan-400"></i>`}</button></div>
-                        </div>
+                        <span class="text-xs font-bold text-slate-300 text-center mb-1">合影檢查與補傳</span>
+                        ${reviewHtml}
                     </div>
                     <div class="flex flex-col gap-1 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center items-center">${finalResultHtml}${retryHtml}</div>
                     <div class="flex-grow flex flex-col gap-3 min-w-[200px] justify-center">

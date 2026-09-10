@@ -109,7 +109,7 @@
                 const res = await fetch(`${API_BASE_URL}/api/status/${taskId}`);
                 const data = await res.json();
                 
-                if (data.success && data.chosenDesign) {
+                if (data.success && data.chosenDesign && data[`printStatus${data.chosenDesign}`] === 'ready') {
                     const finalImage = data.chosenDesign === 'A' ? data.resultImageA : data.resultImageB;
                     
                     if (finalImage) {
@@ -138,6 +138,9 @@
                             }
                         });
                     }
+                } else {
+                    document.getElementById('spinner-text-zh').textContent=isJapanese?'スタッフが確認中です':'合影確認中，請稍候';
+                    setTimeout(fetchPortraitData,3000);
                 }
             } catch (err) {
                 setTimeout(fetchPortraitData, 3000);
