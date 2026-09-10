@@ -143,21 +143,22 @@
             border-color: var(--ai-cyan);
             box-shadow: 0 0 12px rgba(0, 242, 255, 0.6);
         }
+        .print-preview { background-color:#fff; background-image:conic-gradient(#eee 25%,#fff 0 50%,#eee 0 75%,#fff 0); background-size:20px 20px; }
     </style>
 </head>
 <body class="cyber-bg text-white min-h-[100dvh] w-screen flex flex-col">
     <div id="root" class="h-full w-full relative z-10 flex-grow flex flex-col"></div>
 
+    <script src="assets/ip-catalog.js?v=8"></script>
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         // B 機專用後端。請勿改回 A 機服務。
         const API_BASE_URL = "https://aicamera-backend-b.onrender.com";
-        const SCENES = [{
-            id: "digital-ark-green",
-            name: { zh: "與綠色 IP 共乘數位方舟", jp: "緑のキャラクターとデジタル方舟", en: "Digital Ark with Green IP" },
-            guide: { zh: "請正面看鏡頭、自然微笑；AI 會將您轉為坐在船緣、向綠色 IP 揮手的 Q 版人物，官方 IP 與方舟不會被重新繪製。", jp: "正面を向いて自然に笑ってください。AIは船縁に座って公式キャラクターへ手を振る人物だけを描き、IPと方舟は描き直しません。", en: "Face the camera and smile naturally. AI turns only you into a chibi guest seated on the rim and waving to the official IP; the IP and ark are never redrawn." },
-            preview: "assets/fixed-layer-preview.jpg"
-        }];
+        const SCENES = (window.BOOTH_IPS || []).map(ip => ({...ip, guide: {
+            zh: "請正面看鏡頭、自然微笑。我們會將您與選擇的夥伴一起畫進方舟，產生水彩和超 Q 兩款合影。",
+            jp: "正面を向いて笑ってください。選んだ仲間と一緒に方舟に乗る、水彩とちびキャラの2種類を描きます。",
+            en: "Face the camera and smile. AI will draw you aboard the ark with your chosen buddy in two styles."
+        }}));
 
         // 多語系字典 (Traditional Chinese, English, Japanese)
         const TRANSLATIONS = {
@@ -173,8 +174,8 @@
                 cancelBtn: "取消返回首頁",
                 cancelSub: "返回首頁",
                 pickStyleTitle: "✨ 請挑選較喜歡的合影 ✨",
-                styleA: "【 超 Q 版 】",
-                styleB: "【 相似 Q 版 】",
+                styleA: "【 水彩互動版 】",
+                styleB: "【 超 Q 互動版 】",
                 discardBtn: "放棄",
                 confirmBtn: "確定",
                 processing: "處理中...",
@@ -184,13 +185,7 @@
                 scanLabel: "掃碼下載頭像",
                 scanGuide: "請用手機相機掃描 QR Code",
                 autoReturn: "秒後自動返回",
-                loadingTexts: [
-                    "啟動視覺網路模組",
-                    "正在辨識人物外觀特徵",
-                    "AI 正在繪製 Q 版人物",
-                    "固定坐姿與安全區定位",
-                    "疊合原始 IP 與官方方舟"
-                ],
+                loadingTexts: ["正在準備您的互動合影", "參考您的外觀與角色造型", "描繪一起乘船的互動", "生成水彩與超 Q 兩款畫風", "即將完成專屬合影"],
                 loadingSubTexts: [
                     "系統載入中...",
                     "特徵萃取中...",
@@ -211,8 +206,8 @@
                 cancelBtn: "キャンセル",
                 cancelSub: "トップへ戻る",
                 pickStyleTitle: "✨ お気に入りのスタイルをお選びください ✨",
-                styleA: "【 スーパーちび版 】",
-                styleB: "【 似顔ちび版 】",
+                styleA: "【 水彩イラスト 】",
+                styleB: "【 スーパーちび版 】",
                 discardBtn: "やめる",
                 confirmBtn: "確定する",
                 processing: "処理中...",
@@ -222,13 +217,7 @@
                 scanLabel: "QRコードで保存",
                 scanGuide: "スマホのカメラで読み取ってください",
                 autoReturn: "秒後に自動で戻ります",
-                loadingTexts: [
-                    "ビジュアルネット起動中",
-                    "顔の特徴データを抽出中",
-                    "ベクターライン計算中",
-                    "AI専用モデル適用中",
-                    "2つのスタイルを生成中"
-                ],
+                loadingTexts: ["写真を準備しています", "あなたとキャラクターを確認中", "一緒に方舟に乗る場面を描いています", "水彩とちびキャラを作成中", "もうすぐ完成です"],
                 loadingSubTexts: [
                     "処理中...",
                     "抽出中...",
@@ -249,8 +238,8 @@
                 cancelBtn: "CANCEL",
                 cancelSub: "RETURN TO HOME",
                 pickStyleTitle: "✨ Please Select Your Favorite Style ✨",
-                styleA: "【 Extra Chibi 】",
-                styleB: "【 Likeness Chibi 】",
+                styleA: "【 Watercolor 】",
+                styleB: "【 Super Chibi 】",
                 discardBtn: "CANCEL",
                 confirmBtn: "CONFIRM",
                 processing: "Processing...",
@@ -260,13 +249,7 @@
                 scanLabel: "Scan to Download",
                 scanGuide: "Use your Phone Camera to Scan",
                 autoReturn: "s Auto-Return",
-                loadingTexts: [
-                    "BOOTING NEURAL NETWORK",
-                    "EXTRACTING FACIAL FEATURES",
-                    "PROCESSING VECTOR LINES",
-                    "APPLYING EXCLUSIVE LORA",
-                    "GENERATING DUAL STYLES"
-                ],
+                loadingTexts: ["Preparing your photo", "Referencing you and the character", "Drawing your shared boat ride", "Creating watercolor and super-chibi styles", "Your pictures are almost ready"],
                 loadingSubTexts: [
                     "PLEASE WAIT...",
                     "PROCESSING...",
@@ -285,7 +268,7 @@
             const [imgB, setImgB] = useState(null);
             const [selectedChoice, setSelectedChoice] = useState(null);
             const [cameraError, setCameraError] = useState(false);
-            const [selectedSceneId, setSelectedSceneId] = useState(SCENES[0].id);
+            const [selectedSceneId, setSelectedSceneId] = useState(null);
 
             const t = TRANSLATIONS[lang];
             const selectedScene = SCENES.find(scene => scene.id === selectedSceneId) || SCENES[0];
@@ -434,6 +417,12 @@
                             try {
                                 const res = await fetch(API_BASE_URL + "/api/status/" + taskId);
                                 const data = await res.json();
+                                if (data.status === 'failed') {
+                                    clearInterval(pollingRef.current);
+                                    alert(data.error || '生成失敗，請洽工作人員');
+                                    setStep('home');
+                                    return;
+                                }
                                 if (data.status === 'completed' && data.resultImageA && data.resultImageB) {
                                     setImgA(data.resultImageA);
                                     setImgB(data.resultImageB);
@@ -441,16 +430,7 @@
                                     clearInterval(pollingRef.current);
                                 }
                             } catch (err) {
-                                if (taskId === "007") {
-                                    setTimeout(() => {
-                                        if (canvasRef.current) {
-                                            const mockUrl = canvasRef.current.toDataURL();
-                                            setImgA(mockUrl); setImgB(mockUrl);
-                                            setStep('choice');
-                                        }
-                                        clearInterval(pollingRef.current);
-                                    }, 4000);
-                                }
+                                console.warn('暫時無法查詢生成進度，稍後重試', err);
                             }
                         }, 3000);
                     }
@@ -488,24 +468,21 @@
                                     <i className="fa-solid fa-gift mr-3 text-white/90"></i>{t.giftTitle}
                                 </p>
                                 
-                                <div className="w-full max-w-[760px] mb-10 px-4">
-                                    <p className="text-sm sm:text-lg text-slate-300 mb-4 tracking-wider">測試情境｜TEST SCENE</p>
+                                <div className="w-full max-w-[960px] mb-6 px-4">
+                                    <p className="text-lg text-white mb-4">{{zh:"1. 選擇一起乘船的 IP 夥伴",jp:"1. 仲間を選んでください",en:"1. Choose your IP buddy"}[lang]}</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                                     {SCENES.map(scene => (
-                                        <button key={scene.id} onClick={() => setSelectedSceneId(scene.id)} className={`choice-card w-full p-3 sm:p-5 rounded-[2rem] text-left ${selectedSceneId === scene.id ? 'selected' : ''}`}>
-                                            <img src={scene.preview} className="w-full aspect-[4/3] object-cover rounded-2xl border border-slate-700 mb-4" alt={scene.name[lang]} />
-                                            <div className="flex items-center justify-between gap-4 px-2 pb-1">
-                                                <div>
-                                                    <span className="text-ai-cyan text-lg sm:text-2xl font-black block">{scene.name[lang]}</span>
-                                                    <span className="text-slate-300 text-xs sm:text-base">坐在船緣向 IP 揮手，角色與船身皆保留官方原稿</span>
-                                                </div>
-                                                <i className="fa-solid fa-circle-check text-ai-cyan text-2xl"></i>
-                                            </div>
+                                        <button type="button" key={scene.id} aria-pressed={selectedSceneId === scene.id} onClick={() => setSelectedSceneId(scene.id)} className={`choice-card w-full p-3 rounded-2xl text-center ${selectedSceneId === scene.id ? 'selected' : ''}`}>
+                                            <img src={scene.preview} className="w-full h-28 sm:h-36 object-contain rounded-xl bg-white p-2 mb-2" alt={scene.name[lang]} />
+                                            <span className="text-white text-sm sm:text-lg font-bold">{scene.name[lang]}</span>
+                                            {selectedSceneId === scene.id && <i className="fa-solid fa-circle-check text-ai-cyan ml-2" aria-hidden="true"></i>}
                                         </button>
                                     ))}
+                                    </div>
                                 </div>
 
-                                <button onClick={startCamera} className="btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-6 sm:py-8 rounded-full animate-pulse shadow-[0_0_35px_rgba(0,242,255,0.4)] flex flex-col items-center gap-1">
-                                    <span>{t.startBtn}</span>
+                                <button onClick={startCamera} disabled={!selectedSceneId} className="disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-6 sm:py-8 rounded-full animate-pulse shadow-[0_0_35px_rgba(0,242,255,0.4)] flex flex-col items-center gap-1">
+                                    <span>{{zh:"2. 拍照生成",jp:"2. 写真を撮る",en:"2. Take your photo"}[lang]}</span>
                                 </button>
                             </div>
                         )}
@@ -563,11 +540,11 @@
                                 </div>
                                 <div className="grid grid-cols-2 gap-6 w-full mb-8">
                                     <div onClick={() => setSelectedChoice('A')} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'A' ? 'selected' : ''}`}>
-                                        <img src={imgA} className="w-full aspect-[4/3] object-cover rounded-2xl mb-3 border border-slate-800" alt="Style A" />
+                                        <img src={imgA} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style A" />
                                         <span className="text-sm sm:text-2xl font-black tracking-wider block">{t.styleA}</span>
                                     </div>
                                     <div onClick={() => setSelectedChoice('B')} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'B' ? 'selected' : ''}`}>
-                                        <img src={imgB} className="w-full aspect-[4/3] object-cover rounded-2xl mb-3 border border-slate-800" alt="Style B" />
+                                        <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style B" />
                                         <span className="text-sm sm:text-2xl font-black tracking-wider block">{t.styleB}</span>
                                     </div>
                                 </div>

@@ -44,7 +44,7 @@
                         <i class="fa-solid fa-spinner animate-spin text-3xl text-ai-cyan"></i>
                         <span id="spinner-text-zh" class="text-xs tracking-wider font-bold">正在為您沖印肖像...</span>
                     </div>
-                    <img id="portrait-img" class="w-full h-full object-cover hidden" alt="AI Portrait" />
+                    <img id="portrait-img" class="w-full h-full object-contain hidden" alt="AI Portrait" />
                 </div>
 
                 <div class="mb-4 text-center">
@@ -128,7 +128,7 @@
                                 const a = document.createElement('a');
                                 a.style.display = 'none';
                                 a.href = blobUrl;
-                                a.download = `Portrait_B_${taskId}.jpg`;
+                                a.download = `Portrait_B_${taskId}.${blob.type === 'image/png' ? 'png' : 'jpg'}`;
                                 document.body.appendChild(a);
                                 a.click();
                                 window.URL.revokeObjectURL(blobUrl);
