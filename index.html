@@ -360,9 +360,13 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ choice: selectedChoice })
                     });
-                    await response.json();
+                    const data=await response.json();
+                    if(!response.ok || !data.success)throw new Error(data.error || '送出失敗');
                 } catch(e) { 
-                    console.error("回傳選擇失敗", e); 
+                    console.error("回傳選擇失敗", e);
+                    alert(e.message || "送出失敗，請重試");
+                    setIsSubmitting(false);
+                    return; 
                 }
 
                 setIsSubmitting(false);
@@ -423,7 +427,7 @@
                                     setStep('home');
                                     return;
                                 }
-                                if (data.status === 'completed' && data.resultImageA && data.resultImageB) {
+                                if (['completed', 'partial'].includes(data.status) && (data.resultImageA || data.resultImageB)) {
                                     setImgA(data.resultImageA);
                                     setImgB(data.resultImageB);
                                     setStep('choice');
@@ -472,10 +476,8 @@
                                     <p className="text-lg text-white mb-4">{{zh:"1. 選擇一起乘船的 IP 夥伴",jp:"1. 仲間を選んでください",en:"1. Choose your IP buddy"}[lang]}</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                                     {SCENES.map(scene => (
-                                        <button type="button" key={scene.id} aria-pressed={selectedSceneId === scene.id} onClick={() => setSelectedSceneId(scene.id)} className={`choice-card w-full p-3 rounded-2xl text-center ${selectedSceneId === scene.id ? 'selected' : ''}`}>
-                                            <img src={scene.preview} className="w-full h-28 sm:h-36 object-contain rounded-xl bg-white p-2 mb-2" alt={scene.name[lang]} />
-                                            <span className="text-white text-sm sm:text-lg font-bold">{scene.name[lang]}</span>
-                                            {selectedSceneId === scene.id && <i className="fa-solid fa-circle-check text-ai-cyan ml-2" aria-hidden="true"></i>}
+                                        <button type="button" key={scene.id} aria-label={scene.name[lang]} aria-pressed={selectedSceneId === scene.id} onClick={() => setSelectedSceneId(scene.id)} className={`choice-card w-full p-3 rounded-2xl text-center ${selectedSceneId === scene.id ? 'selected' : ''}`}>
+                                            <img src={scene.preview} className="w-full h-28 sm:h-36 object-contain rounded-xl bg-white p-2" alt={scene.name[lang]} />
                                         </button>
                                     ))}
                                     </div>
@@ -539,12 +541,12 @@
                                     <p className="text-ai-cyan text-lg sm:text-2xl font-bold tracking-widest animate-pulse">{t.pickStyleTitle}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-6 w-full mb-8">
-                                    <div onClick={() => setSelectedChoice('A')} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'A' ? 'selected' : ''}`}>
-                                        <img src={imgA} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style A" />
+                                    <div onClick={() => imgA && setSelectedChoice('A')} aria-disabled={!imgA} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'A' ? 'selected' : ''}`}>
+                                        {imgA ? <img src={imgA} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style A" />: <div className="w-full aspect-[4/3] flex items-center justify-center text-slate-400">{{zh:"此款未完成，請選另一款",jp:"もう一方を選んでください",en:"Please choose the other style"}[lang]}</div>}
                                         <span className="text-sm sm:text-2xl font-black tracking-wider block">{t.styleA}</span>
                                     </div>
-                                    <div onClick={() => setSelectedChoice('B')} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'B' ? 'selected' : ''}`}>
-                                        <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style B" />
+                                    <div onClick={() => imgB && setSelectedChoice('B')} aria-disabled={!imgB} className={`choice-card p-3 rounded-3xl text-center ${selectedChoice === 'B' ? 'selected' : ''}`}>
+                                        {imgB ? <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl mb-3 border border-slate-800" alt="Style B" />: <div className="w-full aspect-[4/3] flex items-center justify-center text-slate-400">{{zh:"此款未完成，請選另一款",jp:"もう一方を選んでください",en:"Please choose the other style"}[lang]}</div>}
                                         <span className="text-sm sm:text-2xl font-black tracking-wider block">{t.styleB}</span>
                                     </div>
                                 </div>
@@ -574,7 +576,7 @@
                                 <div className="bg-[#0f172a]/85 border-2 border-ai-cyan p-6 sm:p-8 rounded-[2.5rem] w-full mb-6 shadow-[0_0_45px_rgba(0,242,255,0.3)] flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
                                     
                                     <div className="flex flex-col items-center">
-                                        <img src={selectedChoice === 'A' ? imgA : imgB} className="w-56 sm:w-72 aspect-[4/3] object-cover rounded-3xl mb-4 border-2 border-slate-700 shadow-lg" alt="Selected Style" />
+                                        <img src={selectedChoice === 'A' ? imgA : imgB} className="w-56 sm:w-72 aspect-[4/3] object-contain rounded-3xl mb-4 border-2 border-slate-700 shadow-lg" alt="Selected Style" />
                                         <p className="text-xs sm:text-sm text-slate-400 tracking-[0.2em] font-bold">{t.queueLabel}</p>
                                         <p className="text-5xl sm:text-7xl font-black text-white font-mono drop-shadow-[0_0_20px_#00f2ff]">#{taskId}</p>
                                     </div>

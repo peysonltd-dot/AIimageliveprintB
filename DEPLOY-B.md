@@ -1,12 +1,13 @@
-# B 前台 v8
+# B 前台 v9
 
-解壓縮後把全部內容覆蓋到 peysonltd-dot/AIimageliveprintB 根目錄，包括 assets/ip-catalog.js、assets/ip-catalog.json、assets/ips/ 六張 SVG。不更動 A 機。
+解壓縮後把全部內容覆蓋到 peysonltd-dot/AIimageliveprintB 根目錄，包含 index.html、admin.html 及 assets/。不要只上傳 ZIP。不更動 A 機。
 
-先部署 B 後端 v8，再部署本前台；網址固定連到 https://aicamera-backend-b.onrender.com。
+先部署 B 後端 v9，再部署本前台；固定連到 https://aicamera-backend-b.onrender.com。
 
-前台流程：選一個 IP → 拍照 → 水彩／超 Q 二選一 → 確認送出 → 工作人員下載 PNG 印製。
-畫面應有六個角色選項；未選角色時不能開始拍照。若仍顯示舊畫面，請 Ctrl+Shift+R 或以無痕視窗開啟。
+角色卡片只顯示圖片，保留選取外框及無障礙名稱。流程：選 IP → 拍照 → 水彩／超 Q 二選一 → 確認送出。單款失敗仍可選擇成功的另一款；缺圖的卡片不可選。
 
-新任務為含透明背景及四周 8% 空隙的 PNG，水花保留。棋盤格只用於顯示透明度，下載不會包含。結果預覽完整顯示，不裁切；後台與手機下載不再將 PNG 存成 JPG，人工補傳也使用 PNG。
+結果及完成頁完整顯示圖片，不裁切。可靠去背的結果為透明 PNG 並留約 8% 邊距；淺色背景備援去背的 PNG 標示需確認；無法可靠去背或來源疑似裁切時保留 JPG 預覽，後台標示需人工處理，不保證可以直接印製。
 
-舊 JPG 任務不會自動轉成透明；請建立新任務驗收。詳情及技術限制見後端 DEPLOY-B.md。
+後台新增「重新處理原圖（不重新產圖）」：使用任務保存的原始生成圖片重新做去背及留白，不呼叫付費生成。僅在原圖連結仍存在、有效且任務可讀取時可用；重新部署後沒有成功保存的任務可能無法恢復。
+
+更新後 Ctrl+Shift+R 或用無痕視窗確認。詳細限制及驗收方式見後端 DEPLOY-B.md。
