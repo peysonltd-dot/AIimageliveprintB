@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Virtual Portrait | AI 虛擬肖像體驗</title>
+    <title>AI 方舟互動拍貼</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&family=Noto+Sans+TC:wght@300;500;900&display=swap" rel="stylesheet">
@@ -14,142 +14,12 @@
     <!-- 純前端 QR Code 生成函式庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
-    <style>
-        :root {
-            --ai-cyan: #00f2ff;
-            --ai-pink: #ff00d0;
-            --ai-dark: #020617;
-        }
-        html, body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--ai-dark);
-        }
-        body {
-            touch-action: pan-x pan-y;
-            user-select: none; 
-            -webkit-user-select: none;
-            overflow-x: hidden; 
-            font-family: 'Noto Sans TC', 'Noto Sans JP', sans-serif;
-        }
-        /* 🌟 向上偏移 45px 完美裁切移除背景圖頂部的黑色邊條 */
-        .cyber-bg {
-            background-image: url('https://img.shoplineapp.com/media/image_clips/6a4216a4c1e0e46c9bd9dde7/original.png?1782716067=&owner_id=66221c5c384dbb002ec45c18');
-            background-size: cover;
-            background-position: center -45px; 
-            background-repeat: no-repeat;
-            position: relative;
-        }
-
-        .kv-title {
-            font-family: 'Orbitron', sans-serif;
-            background: linear-gradient(to bottom, #fff 30%, var(--ai-cyan) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 15px rgba(0, 242, 255, 0.6));
-        }
-        .glow-bar {
-            height: 4px;
-            width: 320px;
-            background: linear-gradient(90deg, transparent, var(--ai-pink), var(--ai-cyan), transparent);
-            box-shadow: 0 0 16px var(--ai-pink), 0 0 28px var(--ai-cyan);
-            border-radius: 50%;
-        }
-        .content-container {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            width: 100%;
-            margin-top: 0.5rem;
-            margin-bottom: 0.5rem;
-            padding-top: 0.5rem;
-        }
-        @media (min-height: 1100px) and (max-aspect-ratio: 10/16) {
-            .content-container { justify-content: flex-start; padding-top: 1.5rem; } 
-        }
-        .camera-container {
-            width: 80vw; height: 80vw; max-width: 750px; max-height: 750px; 
-            position: relative; overflow: hidden; border-radius: 2rem;
-            border: 4px solid var(--ai-cyan);
-            box-shadow: 0 0 45px rgba(0, 242, 255, 0.5);
-            background-color: #000; transition: all 0.3s ease-in-out;
-        }
-        @media (min-height: 1100px) {
-            .camera-container { max-width: 750px; max-height: 750px; }
-        }
-        .choice-card {
-            border: 4px solid #1e293b;
-            background: rgba(15, 23, 42, 0.7);
-            transition: all 0.25s ease;
-            cursor: pointer;
-            position: relative;
-            z-index: 10;
-        }
-        .choice-card.selected {
-            border-color: var(--ai-cyan);
-            box-shadow: 0 0 45px rgba(0, 242, 255, 0.6);
-            background: rgba(0, 242, 255, 0.15);
-            transform: scale(1.04);
-        }
-        .face-guide {
-            width: 55%; aspect-ratio: 1 / 1.35; border-radius: 50%;
-            border: 4px solid var(--ai-cyan);
-            box-shadow: 0 0 25px var(--ai-cyan), 0 0 0 9999px rgba(2, 6, 23, 0.6);
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
-        }
-        .radar-spinner {
-            position: relative; width: 240px; height: 240px; 
-            border-radius: 50%; border: 3px dashed rgba(0, 242, 255, 0.5);
-            animation: spin 8s linear infinite;
-        }
-        .radar-spinner::before {
-            content: ''; position: absolute; inset: 18px; border-radius: 50%;
-            border: 6px solid transparent; border-top-color: var(--ai-cyan); border-bottom-color: var(--ai-cyan);
-            animation: spin 2s linear infinite reverse;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .text-glow-pulse { animation: pulse-glow 2s ease-in-out infinite; }
-        @keyframes pulse-glow { 0%, 100% { opacity: 1; text-shadow: 0 0 25px var(--ai-cyan); } 50% { opacity: 0.6; text-shadow: 0 0 10px var(--ai-cyan); } }
-        .btn-cyan {
-            background: rgba(0, 242, 255, 0.1); border: 2.5px solid var(--ai-cyan); color: var(--ai-cyan);
-            letter-spacing: 2px; transition: all 0.3s; box-shadow: 0 0 20px rgba(0, 242, 255, 0.25);
-            position: relative;
-            z-index: 10;
-        }
-        .btn-cyan:active:not(:disabled) { background: var(--ai-cyan); color: #000; box-shadow: 0 0 45px var(--ai-cyan); }
-        .btn-red {
-            background: rgba(255, 0, 208, 0.1); border: 2.5px solid var(--ai-pink); color: var(--ai-pink);
-            letter-spacing: 2px; transition: all 0.3s;
-            position: relative;
-            z-index: 10;
-        }
-        .btn-red:active { background: var(--ai-pink); color: #000; }
-        
-        .lang-btn {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1.5px solid rgba(0, 242, 255, 0.3);
-            color: #94a3b8;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            transition: all 0.2s ease;
-        }
-        .lang-btn.active {
-            background: var(--ai-cyan);
-            color: #020617;
-            border-color: var(--ai-cyan);
-            box-shadow: 0 0 12px rgba(0, 242, 255, 0.6);
-        }
-        .print-preview { background-color:#fff; background-image:conic-gradient(#eee 25%,#fff 0 50%,#eee 0 75%,#fff 0); background-size:20px 20px; }
-    </style>
+    <link rel="stylesheet" href="assets/ocean-theme.css?v=11">
 </head>
-<body class="cyber-bg text-white min-h-[100dvh] w-screen flex flex-col">
+<body class="ocean-bg text-sky-950 min-h-[100dvh] w-screen flex flex-col">
     <div id="root" class="h-full w-full relative z-10 flex-grow flex flex-col"></div>
 
-    <script src="assets/ip-catalog.js?v=8"></script>
+    <script src="assets/ip-catalog.js?v=11"></script>
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         // B 機專用後端。請勿改回 A 機服務。
@@ -180,7 +50,7 @@
                 submittedTitle: "合影已送出",
                 submittedSub: "合影已送出",
                 queueLabel: "您的專屬號碼",
-                scanLabel: "掃碼下載頭像",
+                scanLabel: "掃碼下載合影",
                 scanGuide: "請用手機相機掃描 QR Code",
                 autoReturn: "秒後自動返回",
                 loadingTexts: ["正在準備您的互動合影", "參考您的外觀與角色造型", "描繪一起乘船的互動", "正在繪製專屬合影", "即將完成專屬合影"],
@@ -253,6 +123,15 @@
                 ]
             }
         };
+
+        const OceanWait = ({preview}) => (
+            <div className="ocean-voyage" aria-hidden="true">
+                <div className="voyage-sun"></div><div className="voyage-cloud"></div>
+                <div className="voyage-wave"><svg viewBox="0 0 1200 180" preserveAspectRatio="none"><path d="M0 45 Q75 5 150 45 T300 45 T450 45 T600 45 T750 45 T900 45 T1050 45 T1200 45 V180 H0Z" fill="#97d5e8" /></svg></div>
+                <div className="voyage-boat"><img className="boat-ip" src={preview} alt="" /><img className="boat-hull" src="assets/boat.svg" alt="" /></div>
+                <div className="voyage-wave front"><svg viewBox="0 0 1200 180" preserveAspectRatio="none"><path d="M0 40 Q75 0 150 40 T300 40 T450 40 T600 40 T750 40 T900 40 T1050 40 T1200 40 V180 H0Z" fill="#62bbd6" /><path d="M0 40 Q75 0 150 40 T300 40 T450 40 T600 40 T750 40 T900 40 T1050 40 T1200 40" stroke="#e9fbff" strokeWidth="5" fill="none" /></svg></div>
+            </div>
+        );
 
         const App = () => {
             const [step, setStep] = useState('home');
@@ -434,14 +313,15 @@
             }, [step, taskId, lang]);
 
             return (
-                <div className="flex flex-col items-center justify-between min-h-[100dvh] w-full pt-3 pb-8 px-6">
+                <div className="ocean-shell flex flex-col items-center justify-between min-h-[100dvh] w-full pt-3 pb-8 px-6">
+                    <div className="ocean-backdrop" aria-hidden="true"><svg viewBox="0 0 1440 260" preserveAspectRatio="none"><path d="M0 95 Q360 0 720 95 T1440 95 V260 H0Z" fill="#c5eaf5" /><path d="M0 170 Q360 85 720 170 T1440 170 V260 H0Z" fill="#a8dcec" /></svg></div>
                     
                     {/* Header - 頂部霓虹線條與多國語言切換鈕 */}
-                    <div className="text-center z-20 flex flex-col items-center flex-shrink-0 w-full pt-1 relative">
+                    <div className="ocean-header text-center z-20 flex flex-col items-center flex-shrink-0 w-full pt-1 relative">
                         <div className="glow-bar mt-1"></div>
                         
                         {/* 🌐 多國語言切換 (切換繁中 / 日本語 / English) */}
-                        <div className="absolute right-0 top-0 flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-full border border-ai-cyan/30 shadow-lg backdrop-blur-md">
+                        <div className="lang-switch absolute right-0 top-0 flex items-center gap-1.5 p-1 rounded-full">
                             <button onClick={() => setLang('zh')} className={`lang-btn ${lang === 'zh' ? 'active' : ''}`}>繁中</button>
                             <button onClick={() => setLang('jp')} className={`lang-btn ${lang === 'jp' ? 'active' : ''}`}>日本語</button>
                             <button onClick={() => setLang('en')} className={`lang-btn ${lang === 'en' ? 'active' : ''}`}>EN</button>
@@ -453,15 +333,15 @@
                         
                         {step === 'home' && (
                             <div className="text-center mt-2 sm:mt-6 flex flex-col items-center justify-start w-full">
-                                <p className="text-ai-cyan text-xl sm:text-3xl md:text-4xl mb-3 tracking-[0.2em] text-glow-pulse font-bold">
+                                <p className="ocean-home-title">
                                     {t.title}
                                 </p>
-                                <p className="text-ai-pink text-xl sm:text-2xl md:text-3xl tracking-[0.2em] font-black mb-12 drop-shadow-[0_0_15px_rgba(255,0,208,0.8)]">
-                                    <i className="fa-solid fa-gift mr-3 text-white/90"></i>{t.giftTitle}
+                                <p className="ocean-home-subtitle">
+                                    {t.giftTitle}
                                 </p>
                                 
                                 <div className="w-full max-w-[960px] mb-6 px-4">
-                                    <p className="text-lg text-white mb-4">{{zh:"1. 選擇一起乘船的 IP 夥伴",jp:"1. 仲間を選んでください",en:"1. Choose your IP buddy"}[lang]}</p>
+                                    <p className="text-lg text-sky-950 mb-4">{{zh:"1. 選擇一起乘船的 IP 夥伴",jp:"1. 仲間を選んでください",en:"1. Choose your IP buddy"}[lang]}</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                                     {SCENES.map(scene => (
                                         <button type="button" key={scene.id} aria-label={scene.name[lang]} aria-pressed={selectedSceneId === scene.id} onClick={() => setSelectedSceneId(scene.id)} className={`choice-card w-full p-3 rounded-2xl text-center ${selectedSceneId === scene.id ? 'selected' : ''}`}>
@@ -471,7 +351,7 @@
                                     </div>
                                 </div>
 
-                                <button onClick={startCamera} disabled={!selectedSceneId} className="disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-6 sm:py-8 rounded-full animate-pulse shadow-[0_0_35px_rgba(0,242,255,0.4)] flex flex-col items-center gap-1">
+                                <button onClick={startCamera} disabled={!selectedSceneId} className="disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-4 sm:py-5 rounded-full   flex flex-col items-center gap-1">
                                     <span>{{zh:"2. 拍照生成",jp:"2. 写真を撮る",en:"2. Take your photo"}[lang]}</span>
                                 </button>
                             </div>
@@ -479,24 +359,23 @@
 
                         {step === 'camera' && (
                             <div className="flex flex-col items-center w-full">
-                                <div className="w-full max-w-[760px] mb-4 bg-slate-950/80 border border-ai-cyan/50 rounded-2xl px-5 py-4 text-center">
-                                    <p className="text-ai-cyan font-black text-lg sm:text-2xl mb-1">{selectedScene.name[lang]}</p>
-                                    <p className="text-white text-sm sm:text-lg">{selectedScene.guide[lang]}</p>
+                                <div className="w-full max-w-[760px] mb-4 ocean-surface border border-ai-cyan/50 rounded-2xl px-5 py-4 text-center">
+                                    <p className="text-sky-950 text-sm sm:text-lg">{selectedScene.guide[lang]}</p>
                                 </div>
                                 <div className="camera-container">
                                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover absolute inset-0" style={{ transform: 'rotateY(180deg)' }} />
                                     <div className="face-guide"></div>
                                     {countdown > 0 && (
-                                        <div className="absolute top-6 right-6 w-24 h-24 rounded-2xl border-2 border-ai-cyan bg-[#020617]/95 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(0,242,255,0.4)]">
-                                            <span className="text-[44px] font-black text-white font-mono">{countdown}</span>
+                                        <div className="absolute top-6 right-6 w-24 h-24 rounded-2xl border-2 border-ai-cyan camera-countdown flex flex-col items-center justify-center ">
+                                            <span className="text-[44px] font-black text-sky-950 font-mono">{countdown}</span>
                                         </div>
                                     )}
                                 </div>
                                 <div className="mt-8 flex gap-6 w-[85vw] sm:w-[80vw] max-w-[500px] sm:max-w-[750px] px-2">
-                                    <button onClick={handleCancelAndGoHome} className="btn-cyan flex-1 py-4 sm:py-5 rounded-2xl text-base sm:text-xl font-bold flex flex-col items-center justify-center leading-tight">
+                                    <button onClick={handleCancelAndGoHome} className="btn-cyan btn-secondary flex-1 py-4 sm:py-5 rounded-2xl text-base sm:text-xl font-bold flex flex-col items-center justify-center leading-tight">
                                         <span>{t.homeBtn}</span>
                                     </button>
-                                    <button onClick={takePhoto} className="btn-cyan flex-[2.5] py-4 sm:py-5 rounded-2xl text-xl sm:text-3xl font-black bg-ai-cyan/20 shadow-[0_0_20px_rgba(0,242,255,0.3)] flex flex-col items-center justify-center leading-tight">
+                                    <button onClick={takePhoto} className="btn-cyan flex-[2.5] py-4 sm:py-5 rounded-2xl text-xl sm:text-3xl font-black bg-ai-cyan/20  flex flex-col items-center justify-center leading-tight">
                                         <span>{t.takePhotoBtn}</span>
                                     </button>
                                 </div>
@@ -504,16 +383,15 @@
                         )}
 
                         {step === 'loading' && (
-                            <div className="flex flex-col items-center justify-center">
-                                <div className="relative flex items-center justify-center mb-8">
-                                    <div className="radar-spinner"></div>
-                                </div>
-                                <div className="h-32 text-center mb-6">
-                                    <h2 className="text-2xl sm:text-4xl font-bold text-white tracking-wider mb-2 text-glow-pulse">{t.loadingTexts[textIndex]}</h2>
+                            <div className="loading-screen flex flex-col items-center justify-center">
+                                <OceanWait preview={selectedScene.preview} />
+                                <div className="loading-copy">
+                                    <h2 className="text-2xl sm:text-4xl font-bold text-sky-950 tracking-wider mb-2 ">{t.loadingTexts[textIndex]}</h2>
+                                    <div className="loading-dots" aria-hidden="true"><i></i><i></i><i></i></div>
                                 </div>
                                 {taskId && (
-                                    <div className="bg-black/40 p-5 sm:p-6 rounded-3xl border-2 border-ai-cyan text-center w-72 shadow-[0_0_30px_rgba(0,242,255,0.2)] mb-6">
-                                        <p className="text-[10px] sm:text-[12px] text-slate-400 font-mono tracking-wider">PROGRESS ID</p>
+                                    <div className="loading-number">
+                                        <p className="text-[10px] sm:text-[12px] text-slate-500 font-mono tracking-wider">{t.queueLabel}</p>
                                         <p className="text-4xl sm:text-5xl font-mono font-black text-ai-cyan">#{taskId}</p>
                                     </div>
                                 )}
@@ -526,18 +404,18 @@
                         {step === 'choice' && (
                             <div className="flex flex-col items-center w-full max-w-[1000px] px-4">
                                 <div className="text-center mb-6">
-                                    <p className="text-ai-cyan text-lg sm:text-2xl font-bold tracking-widest animate-pulse">{t.pickStyleTitle}</p>
+                                    <p className="text-ai-cyan text-lg sm:text-2xl font-bold tracking-widest ">{t.pickStyleTitle}</p>
                                 </div>
-                                <div className="w-full max-w-[760px] mb-8 p-3 rounded-3xl border-2 border-cyan-400 bg-slate-900/70">
+                                <div className="w-full max-w-[760px] mb-8 p-3 rounded-3xl border-2 border-cyan-400 ocean-surface">
                                     {imgB && !needsReview ? <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl" alt={t.avatarLabel} /> :
                                     <div role="status" className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-4 text-center p-6">
                                         <p className="text-xl font-bold">{{zh:'合影需要工作人員協助確認',jp:'スタッフが写真を確認しています',en:'Staff are checking your photo'}[lang]}</p>
                                         <p className="text-4xl font-mono">#{taskId}</p>
-                                        <p className="text-slate-300">{{zh:'請告知工作人員您的號碼，無需重新拍照',jp:'この番号をスタッフにお伝えください。再撮影は不要です',en:'Show this number to staff. No new photo is needed.'}[lang]}</p>
+                                        <p className="text-slate-600">{{zh:'請告知工作人員您的號碼，無需重新拍照',jp:'この番号をスタッフにお伝えください。再撮影は不要です',en:'Show this number to staff. No new photo is needed.'}[lang]}</p>
                                     </div>}
                                 </div>
                                 <div className="flex gap-6 w-full sm:max-w-[700px]">
-                                    <button onClick={handleCancelAndGoHome} className="btn-cyan flex-1 py-4 rounded-2xl text-xs sm:text-xl font-bold flex flex-col items-center justify-center">
+                                    <button onClick={handleCancelAndGoHome} className="btn-cyan btn-secondary flex-1 py-4 rounded-2xl text-xs sm:text-xl font-bold flex flex-col items-center justify-center">
                                         <span>{t.discardBtn}</span>
                                     </button>
                                     <button 
@@ -545,8 +423,8 @@
                                         onClick={finalizeChoice} 
                                         className={`flex-[2.5] py-4 rounded-2xl text-base sm:text-2xl font-black transition-all duration-300 flex flex-col items-center justify-center ${
                                             imgB && !needsReview 
-                                                ? 'btn-cyan bg-cyan-400 text-slate-950 shadow-[0_0_35px_rgba(0,242,255,0.5)]' 
-                                                : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                                                ? 'btn-cyan ' 
+                                                : 'bg-sky-100 text-slate-500 border border-sky-200 cursor-not-allowed'
                                         }`}
                                     >
                                         <span><i className="fa-solid fa-check mr-2"></i>{isSubmitting ? t.processing : t.confirmBtn}</span>
@@ -557,24 +435,24 @@
 
                         {step === 'completed' && (
                             <div className="flex flex-col items-center w-full max-w-[850px] px-4 text-center">
-                                <h2 className="text-3xl sm:text-5xl font-black text-ai-cyan tracking-widest mb-6 animate-pulse">{t.submittedTitle}</h2>
+                                <h2 className="text-3xl sm:text-5xl font-black text-ai-cyan tracking-widest mb-6 ">{t.submittedTitle}</h2>
                                 
-                                <div className="bg-[#0f172a]/85 border-2 border-ai-cyan p-6 sm:p-8 rounded-[2.5rem] w-full mb-6 shadow-[0_0_45px_rgba(0,242,255,0.3)] flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
+                                <div className="ocean-surface border-2 border-ai-cyan p-6 sm:p-8 rounded-[2.5rem] w-full mb-6  flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
                                     
                                     <div className="flex flex-col items-center">
-                                        <img src={imgB} className="w-56 sm:w-72 aspect-[4/3] object-contain rounded-3xl mb-4 border-2 border-slate-700 shadow-lg" alt="Selected Style" />
-                                        <p className="text-xs sm:text-sm text-slate-400 tracking-[0.2em] font-bold">{t.queueLabel}</p>
-                                        <p className="text-5xl sm:text-7xl font-black text-white font-mono drop-shadow-[0_0_20px_#00f2ff]">#{taskId}</p>
+                                        <img src={imgB} className="w-56 sm:w-72 aspect-[4/3] object-contain rounded-3xl mb-4 border-2 border-sky-200 shadow-lg" alt="Selected Style" />
+                                        <p className="text-xs sm:text-sm text-slate-500 tracking-[0.2em] font-bold">{t.queueLabel}</p>
+                                        <p className="text-5xl sm:text-7xl font-black text-sky-950 font-mono ">#{taskId}</p>
                                     </div>
 
-                                    <div className="flex flex-col items-center bg-slate-900/60 p-5 rounded-3xl border border-slate-700 w-full max-w-[280px]">
-                                        <div className="p-3 bg-white rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center mb-3">
+                                    <div className="flex flex-col items-center ocean-surface p-5 rounded-3xl border border-sky-200 w-full max-w-[280px]">
+                                        <div className="p-3 bg-white rounded-2xl  flex items-center justify-center mb-3">
                                             <canvas ref={qrCanvasRef} className="w-40 h-40 object-contain"></canvas>
                                         </div>
                                         <span className="text-ai-cyan text-sm sm:text-base font-black tracking-widest mb-1">
                                             <i className="fa-solid fa-mobile-screen-button mr-1.5 animate-bounce"></i> {t.scanLabel}
                                         </span>
-                                        <span className="text-[10px] sm:text-[11px] text-slate-400">{t.scanGuide}</span>
+                                        <span className="text-[10px] sm:text-[11px] text-slate-500">{t.scanGuide}</span>
                                     </div>
 
                                 </div>
@@ -589,13 +467,13 @@
                     </div>
 
                     {cameraError && (
-                        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-                            <div className="bg-slate-900 border-2 border-rose-500 rounded-3xl p-8 max-w-md w-full text-center shadow-[0_0_45px_rgba(239,68,68,0.5)]">
+                        <div className="fixed inset-0 bg-sky-950/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                            <div className="ocean-surface border-2 border-rose-500 rounded-3xl p-8 max-w-md w-full text-center ">
                                 <div className="w-20 h-20 rounded-full bg-rose-500/10 border-2 border-rose-500 flex items-center justify-center mx-auto mb-6 text-rose-500 text-4xl animate-bounce">
                                     <i className="fa-solid fa-camera"></i>
                                 </div>
-                                <h3 className="text-2xl font-black text-white mb-2">請開通相機權限</h3>
-                                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                                <h3 className="text-2xl font-black text-sky-950 mb-2">請開通相機權限</h3>
+                                <p className="text-slate-500 text-sm leading-relaxed mb-6">
                                     機台偵測不到視訊鏡頭。請點擊瀏覽器網址列旁的「鎖頭」圖示，並將相機存取權限設為「允許」。<br/>
                                     <span className="text-xs font-mono text-rose-400 block mt-2">Please enable camera permissions in browser settings.</span>
                                 </p>
@@ -606,19 +484,6 @@
                         </div>
                     )}
 
-                    {/* 🌟 Footer 合作單位 LOGO 區塊 */}
-                    <div className="w-full flex flex-col items-center justify-center gap-2 pt-2 z-10">
-                        <div className="flex items-center justify-center bg-white/95 px-5 py-2 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-md">
-                            <img src="https://img.shoplineapp.com/media/image_clips/6a70274247e08ca4d6740eca/original.png?1785734978=&owner_id=66221c5c384dbb002ec45c18" alt="合作單位 LOGO" className="h-6 sm:h-8 object-contain" />
-                        </div>
-                        <div 
-                            onClick={handleCancelAndGoHome}
-                            className="w-full text-center opacity-40 text-xs sm:text-sm font-mono text-ai-cyan tracking-widest cursor-default select-none active:text-white transition-colors duration-150"
-                            title="工作人員專用跳轉 / Staff Reset"
-                        >
-                            2026
-                        </div>
-                    </div>
                     <canvas ref={canvasRef} className="hidden"></canvas>
                 </div>
             );

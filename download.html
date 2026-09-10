@@ -8,25 +8,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&family=Noto+Sans+TC:wght@300;500;900&display=swap" rel="stylesheet">
     
-    <style>
-        :root { --ai-cyan: #00f2ff; --ai-pink: #ff00d0; --ai-dark: #020617; }
-        body { font-family: 'Noto Sans TC', 'Noto Sans JP', sans-serif; background-color: var(--ai-dark); margin: 0; padding: 0; overflow-x: hidden; }
-        .cyber-bg { background-image: url('https://img.shoplineapp.com/media/image_clips/6a42074e98a89e001272a13a/original.png?1782712141=&owner_id=66221c5c384dbb002ec45c18'); background-size: cover; background-position: center -45px; background-repeat: no-repeat; background-attachment: fixed; min-height: 100dvh; display: flex; flex-direction: column; justify-content: space-between; }
-        .glass-card { background: rgba(15, 23, 42, 0.75); border: 1.5px solid rgba(0, 242, 255, 0.2); backdrop-filter: blur(12px); box-shadow: 0 0 40px rgba(0, 242, 255, 0.15); }
-        .glow-button { background: linear-gradient(90deg, var(--ai-cyan), #00aaff); color: #020617; box-shadow: 0 0 25px rgba(0, 242, 255, 0.4); transition: all 0.3s ease; }
-        .glow-button:active { transform: scale(0.96); box-shadow: 0 0 35px var(--ai-cyan); }
-        .shimmer-pulse { animation: pulse-glow 2.5s ease-in-out infinite; }
-        @keyframes pulse-glow { 0%, 100% { border-color: rgba(0, 242, 255, 0.2); box-shadow: 0 0 20px rgba(0, 242, 255, 0.1); } 50% { border-color: rgba(0, 242, 255, 0.6); box-shadow: 0 0 35px rgba(0, 242, 255, 0.3); } }
-    </style>
+    <link rel="stylesheet" href="assets/ocean-theme.css?v=11">
 </head>
-<body class="text-white">
+<body class="ocean-bg text-sky-950">
 
-    <div class="cyber-bg w-full px-6 py-6 flex flex-col justify-between">
+    <div class="min-h-[100dvh] w-full px-6 py-6 flex flex-col justify-between">
         <header class="text-center w-full flex-shrink-0 mb-4 flex flex-col items-center">
-            <h1 id="header-title" class="text-2xl font-black tracking-widest text-white drop-shadow-[0_0_10px_rgba(0,242,255,0.4)] pt-2">
+            <h1 id="header-title" class="text-2xl font-black tracking-widest text-sky-950  pt-2">
                 肖像下載
             </h1>
-            <span class="text-slate-300 text-xs font-mono tracking-wider block mt-1">
+            <span class="text-slate-600 text-xs font-mono tracking-wider block mt-1">
                 Portrait Download [Booth B]
             </span>
             <div class="h-[2px] w-24 bg-gradient-to-r from-transparent via-[#00f2ff] to-transparent mx-auto mt-2"></div>
@@ -36,10 +27,10 @@
             <div class="glass-card rounded-[2.5rem] p-6 w-full text-center flex flex-col items-center relative overflow-hidden">
                 <div class="mb-5">
                     <span class="text-[10px] font-mono tracking-widest text-ai-cyan block">PORTRAIT NO</span>
-                    <span id="display-task-id" class="text-4xl font-black font-mono tracking-wider text-white">#---</span>
+                    <span id="display-task-id" class="text-4xl font-black font-mono tracking-wider text-sky-950">#---</span>
                 </div>
 
-                <div class="relative w-full aspect-[4/3] mb-6 rounded-3xl overflow-hidden border-2 shimmer-pulse flex items-center justify-center bg-black/40">
+                <div class="relative w-full aspect-[4/3] mb-6 rounded-3xl overflow-hidden border-2 shimmer-pulse flex items-center justify-center bg-white/80">
                     <div id="loading-spinner" class="absolute flex flex-col items-center justify-center text-slate-400 gap-3">
                         <i class="fa-solid fa-spinner animate-spin text-3xl text-ai-cyan"></i>
                         <span id="spinner-text-zh" class="text-xs tracking-wider font-bold">正在為您沖印肖像...</span>
@@ -51,7 +42,7 @@
                     <p id="guide-text-1" class="text-ai-cyan font-black text-sm tracking-widest mb-0.5">
                         <i class="fa-solid fa-hand-pointer mr-1 animate-bounce"></i> 長按上方圖片即可儲存
                     </p>
-                    <p id="guide-text-2" class="text-slate-300 font-mono text-xs mb-1">
+                    <p id="guide-text-2" class="text-slate-600 font-mono text-xs mb-1">
                         Long-press Image to Save
                     </p>
                     <p class="text-[9px] text-slate-400">iOS (Safari/LINE/WeChat) & Android</p>
@@ -65,14 +56,7 @@
             </div>
         </main>
 
-        <footer class="text-center w-full flex-shrink-0 pt-4 flex flex-col items-center gap-3">
-            <div class="flex items-center justify-center gap-3 bg-white/95 px-4 py-1.5 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-md">
-                <img src="https://img.shoplineapp.com/media/image_clips/6a607d669e55e27ece023d03/original.png?1784708454=&owner_id=66221c5c384dbb002ec45c18" alt="TCA 台北市電腦商業同業公會" class="h-5 sm:h-6 object-contain" />
-                <div class="h-4 w-[1.5px] bg-slate-300"></div>
-                <img src="https://img.shoplineapp.com/media/image_clips/6a607d662a733964446d360a/original.png?1784708454=&owner_id=66221c5c384dbb002ec45c18" alt="TAIWAN AI ALLIANCE 台灣AI大聯盟" class="h-5 sm:h-6 object-contain" />
-            </div>
-            <p class="text-[8px] font-mono text-ai-cyan">2026 ALL RIGHTS RESERVED</p>
-        </footer>
+
 
     </div>
 
