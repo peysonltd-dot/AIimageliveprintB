@@ -218,7 +218,7 @@
                         ${image?`<img src="${image}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
                         ${image?`<button onclick="downloadResultImage('${task.id}','${side}')" class="text-xs text-cyan-300 underline">下載${review?'待確認':'預覽'}圖檔</button>`:''}
                         ${review?'<span class="text-xs text-amber-400">需確認背景、色邊與完整構圖</span>':''}
-                        ${review && image?.startsWith('data:image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，提供賓客預覽</button>`:''}
+                        ${review && image?.startsWith('data:image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，可供印製</button>`:''}
                         <button onclick="triggerDualUpload('${task.id}','${side}')" class="upload-zone border border-dashed border-cyan-500/40 rounded p-2 text-xs">補傳${label}</button>
                     </div>`;
                 }).join('');

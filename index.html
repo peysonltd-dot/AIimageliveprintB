@@ -14,7 +14,7 @@
     <!-- 純前端 QR Code 生成函式庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
-    <link rel="stylesheet" href="assets/ocean-theme.css?v=11">
+    <link rel="stylesheet" href="assets/ocean-theme.css?v=14">
 </head>
 <body class="ocean-bg text-sky-950 min-h-[100dvh] w-screen flex flex-col">
     <div id="root" class="h-full w-full relative z-10 flex-grow flex flex-col"></div>
@@ -135,9 +135,17 @@
 
         const App = () => {
             const [step, setStep] = useState('home');
+            const [progress, setProgress] = useState(0);
+            useEffect(() => {
+                if (step !== 'loading') return;
+                setProgress(0);
+                const started = Date.now();
+                // Visual estimate only: the provider does not return a completion percentage.
+                const timer = setInterval(() => setProgress(95 * (1 - Math.exp(-(Date.now() - started) / 60000))), 500);
+                return () => clearInterval(timer);
+            }, [step]);
             const [lang, setLang] = useState('zh'); // 🌟 預設語言改為繁體中文 'zh'
             const [taskId, setTaskId] = useState(null);
-            const [needsReview, setNeedsReview] = useState(false);
             const [imgB, setImgB] = useState(null);
             
             const [cameraError, setCameraError] = useState(false);
@@ -206,7 +214,6 @@
                 setStream(null);
                 setStep('loading');
                 setImgB(null);
-                setNeedsReview(false);
 
                 try {
                     const res = await fetch(API_BASE_URL + "/api/upload", {
@@ -225,7 +232,7 @@
             };
 
             const finalizeChoice = async () => {
-                if (!imgB || needsReview) return;
+                if (!imgB) return;
                 setIsSubmitting(true);
                 
                 try {
@@ -254,7 +261,6 @@
                 setStream(null);
                 setTaskId(null);
                 setImgB(null);
-                setNeedsReview(false);
                 setCameraError(false);
                 setStep('home');
             };
@@ -299,10 +305,9 @@
                         const data=await response.json();
                         if(!active)return;
                         if(['completed','partial','failed'].includes(data.status)) {
-                            const ready=data.printStatusB==='ready' && !!data.resultImageB;
-                            setImgB(ready ? data.resultImageB : null);
-                            setNeedsReview(!ready);
-                            if(step==='loading')setStep('choice');
+                            // Print preparation warnings belong to the staff view, not guest preview availability.
+                            setImgB(data.resultImageB || null);
+                            if(step==='loading'){if(data.resultImageB)setProgress(100);setStep('choice');}
                         }
                     } catch(error){console.warn('暫時無法查詢合影，稍後重試');}
                     finally{busy=false;}
@@ -388,6 +393,10 @@
                                 <div className="loading-copy">
                                     <h2 className="text-2xl sm:text-4xl font-bold text-sky-950 tracking-wider mb-2 ">{t.loadingTexts[textIndex]}</h2>
                                     <div className="loading-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+                                    <div className="generation-progress" role="progressbar" aria-label={{zh:'合影生成進度（預估）',jp:'生成の進行状況（目安）',en:'Estimated generation progress'}[lang]} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(progress)}>
+                                        <div className="generation-progress-fill" style={{width: `${progress}%`}} />
+                                    </div>
+                                    <p className="generation-progress-note">{{zh:'正在生成中，進度僅供參考，完成後將自動顯示合影',jp:'進行状況は目安です。完成すると画像が自動で表示されます',en:'Progress is estimated. Your photo will appear automatically when ready.'}[lang]}</p>
                                 </div>
                                 {taskId && (
                                     <div className="loading-number">
@@ -407,11 +416,11 @@
                                     <p className="text-ai-cyan text-lg sm:text-2xl font-bold tracking-widest ">{t.pickStyleTitle}</p>
                                 </div>
                                 <div className="w-full max-w-[760px] mb-8 p-3 rounded-3xl border-2 border-cyan-400 ocean-surface">
-                                    {imgB && !needsReview ? <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl" alt={t.avatarLabel} /> :
+                                    {imgB ? <img src={imgB} className="w-full aspect-[4/3] object-contain print-preview rounded-2xl" alt={t.avatarLabel} /> :
                                     <div role="status" className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-4 text-center p-6">
-                                        <p className="text-xl font-bold">{{zh:'合影需要工作人員協助確認',jp:'スタッフが写真を確認しています',en:'Staff are checking your photo'}[lang]}</p>
+                                        <p className="text-xl font-bold">{{zh:'暫時未取得合影',jp:'画像をまだ取得できません',en:'Your photo is not available yet'}[lang]}</p>
                                         <p className="text-4xl font-mono">#{taskId}</p>
-                                        <p className="text-slate-600">{{zh:'請告知工作人員您的號碼，無需重新拍照',jp:'この番号をスタッフにお伝えください。再撮影は不要です',en:'Show this number to staff. No new photo is needed.'}[lang]}</p>
+                                        <p className="text-slate-600">{{zh:'請告知工作人員您的號碼，協助查詢生成狀態',jp:'この番号をスタッフにお伝えください',en:'Show this number to staff to check the generation status.'}[lang]}</p>
                                     </div>}
                                 </div>
                                 <div className="flex gap-6 w-full sm:max-w-[700px]">
@@ -419,10 +428,10 @@
                                         <span>{t.discardBtn}</span>
                                     </button>
                                     <button 
-                                        disabled={!imgB || needsReview || isSubmitting} 
+                                        disabled={!imgB || isSubmitting} 
                                         onClick={finalizeChoice} 
                                         className={`flex-[2.5] py-4 rounded-2xl text-base sm:text-2xl font-black transition-all duration-300 flex flex-col items-center justify-center ${
-                                            imgB && !needsReview 
+                                            imgB 
                                                 ? 'btn-cyan ' 
                                                 : 'bg-sky-100 text-slate-500 border border-sky-200 cursor-not-allowed'
                                         }`}
