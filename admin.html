@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
     <title>機台 B | 後台智慧控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;500;700;900&display=swap" rel="stylesheet">
     
     <style>
+        [hidden] { display: none !important; }
         :root { --ai-cyan: #00f2ff; --ai-pink: #ff00d0; }
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #0b1329; background-image: radial-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 0); background-size: 24px 24px; }
         .cyber-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(0, 242, 255, 0.15); transition: all 0.3s ease; }
@@ -21,6 +24,18 @@
 </head>
 <body class="text-slate-100 min-h-screen p-4 md:p-8">
 
+    <section id="login-panel" class="min-h-[85vh] flex items-center justify-center">
+        <form id="login-form" class="cyber-card rounded-2xl p-8 w-full max-w-sm">
+            <h1 class="text-2xl font-black text-white mb-3">機台 B 後台登入</h1>
+            <p class="text-slate-400 text-base mb-6">請輸入管理密碼。</p>
+            <label for="admin-password" class="block text-base font-bold mb-2">密碼</label>
+            <input id="admin-password" name="password" type="password" autocomplete="current-password" required maxlength="256" class="w-full rounded-lg border border-slate-600 bg-slate-950 text-white text-lg p-3 focus:outline-cyan-400" />
+            <p id="login-error" role="alert" class="text-rose-300 text-sm min-h-6 my-3"></p>
+            <button id="login-submit" type="submit" class="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-lg py-3 text-lg disabled:opacity-50">登入後台</button>
+        </form>
+    </section>
+
+    <div id="admin-app" hidden>
     <input type="file" id="global-file-input-A" class="hidden" accept="image/*" />
     <input type="file" id="global-file-input-B" class="hidden" accept="image/*" />
 
@@ -31,6 +46,7 @@
         </div>
         
         <div class="flex flex-wrap items-center gap-3">
+            <button type="button" onclick="logoutAdmin()" class="border border-slate-600 hover:bg-slate-800 font-bold px-4 py-2 rounded-lg text-sm">登出</button>
             <button onclick="fetchAllTasks()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow-[0_0_15px_rgba(0,242,255,0.3)]">
                 <i class="fa-solid fa-arrows-rotate"></i> 重新整理數據
             </button>
@@ -43,12 +59,120 @@
     <main class="max-w-7xl mx-auto">
         <div id="tasks-container" class="grid grid-cols-1 gap-6 transition-all duration-500"></div>
     </main>
+    </div>
 
     <script>
         // 🔒 硬編碼固定連線至機台 B 後端
         const API_BASE_URL = "https://aicamera-backend-b.onrender.com";
         let localTasksCache = {};
         let currentUploadTaskId = null;
+
+        // Only a short-lived session token lives in this page's memory.
+        // Reloading, leaving the page or signing out requires another login.
+        let authToken = null;
+        let authController = null;
+        let refreshTimer = null;
+        let expiryTimer = null;
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[char]));
+        }
+
+        function showLogin(message = '') {
+            authToken = null;
+            if (authController) authController.abort();
+            authController = null;
+            clearInterval(refreshTimer);
+            clearTimeout(expiryTimer);
+            refreshTimer = null;
+            expiryTimer = null;
+            localTasksCache = {};
+            currentUploadTaskId = null;
+            document.getElementById('tasks-container').replaceChildren();
+            document.getElementById('admin-app').hidden = true;
+            document.getElementById('login-panel').hidden = false;
+            document.getElementById('login-error').textContent = message;
+            document.getElementById('admin-password').value = '';
+            ['A', 'B'].forEach(side => { document.getElementById(`global-file-input-${side}`).value = ''; });
+        }
+
+        async function adminFetch(url, options = {}) {
+            const token = authToken;
+            if (!token || !authController) throw new Error('請先登入後台。');
+            const headers = new Headers(options.headers);
+            headers.set('Authorization', `Bearer ${token}`);
+            const response = await fetch(url, { ...options, headers, credentials: 'omit', cache: 'no-store', signal: authController.signal });
+            if (token !== authToken) throw new Error('登入狀態已變更。');
+            if (response.status === 401) {
+                showLogin('登入已逾時，請重新輸入密碼。');
+                throw new Error('請重新登入後台。');
+            }
+            // Discard delayed responses from a previous login, even if their
+            // response headers arrived just before logout.
+            return {
+                ok: response.ok,
+                status: response.status,
+                async json() {
+                    const data = await response.json();
+                    if (token !== authToken) throw new Error('登入狀態已變更。');
+                    return data;
+                }
+            };
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const input = document.getElementById('admin-password');
+            const button = document.getElementById('login-submit');
+            if (button.disabled) return;
+            button.disabled = true;
+            button.textContent = '登入中…';
+            document.getElementById('login-error').textContent = '';
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+                    method: 'POST', credentials: 'omit', cache: 'no-store',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: input.value })
+                });
+                input.value = '';
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || '登入失敗，請稍後再試。');
+                if (!/^[A-Za-z0-9_-]{43}$/.test(data.token) || !Number.isFinite(data.expiresAt) || data.expiresAt <= Date.now()) {
+                    throw new Error('登入驗證未完成，請重新登入。');
+                }
+                authToken = data.token;
+                authController = new AbortController();
+                document.getElementById('login-panel').hidden = true;
+                document.getElementById('admin-app').hidden = false;
+                expiryTimer = setTimeout(() => showLogin('登入已逾時，請重新輸入密碼。'), Math.min(data.expiresAt - Date.now(), 12 * 60 * 60 * 1000));
+                refreshTimer = setInterval(fetchAllTasks, 3200);
+                await fetchAllTasks();
+            } catch (error) {
+                showLogin(error instanceof TypeError ? '暫時無法連線，請稍後再試。' : error.message);
+            } finally {
+                input.value = '';
+                button.disabled = false;
+                button.textContent = '登入後台';
+            }
+        });
+
+        async function logoutAdmin() {
+            const token = authToken;
+            showLogin('已登出。');
+            if (token) {
+                try {
+                    await fetch(`${API_BASE_URL}/api/admin/logout`, {
+                        method: 'POST', credentials: 'omit', cache: 'no-store',
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                } catch (_) { /* The page has already cleared its session and data. */ }
+            }
+        }
+
+        window.addEventListener('pagehide', () => showLogin());
+        window.addEventListener('pageshow', event => { if (event.persisted) showLogin(); });
 
         function compressAndResizeImage(file, callback) {
             const reader = new FileReader();
@@ -72,7 +196,7 @@
         async function executeResetAll() {
             if (!confirm("確定要重製機台 B 的所有排隊嗎？")) return;
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/reset-all`, { method: 'POST' });
+                const res = await adminFetch(`${API_BASE_URL}/api/admin/reset-all`, { method: 'POST' });
                 if ((await res.json()).success) { localTasksCache = {}; renderTasks([]); }
             } catch (err) {}
         }
@@ -81,7 +205,7 @@
             const task = localTasksCache[taskId];
             if (task) {
                 task[field] = value;
-                fetch(`${API_BASE_URL}/api/admin/update-meta/${taskId}`, {
+                adminFetch(`${API_BASE_URL}/api/admin/update-meta/${taskId}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ processStatus: task.processStatus, remark: task.remark })
                 }).catch(e => {});
@@ -92,7 +216,7 @@
             const button=document.getElementById(`reprocess-${taskId}`);
             if(button){button.disabled=true;button.textContent='重新處理中…';}
             try {
-                const response=await fetch(`${API_BASE_URL}/api/admin/reprocess/${taskId}`,{method:'POST'});
+                const response=await adminFetch(`${API_BASE_URL}/api/admin/reprocess/${taskId}`,{method:'POST'});
                 const data=await response.json();
                 if(!response.ok || !data.success)throw new Error(data.error || '處理失敗');
                 // Invalidate locally cached images so regenerated PNGs replace older previews.
@@ -105,7 +229,7 @@
         async function approveResult(taskId,choice) {
             if(!confirm('請確認透明背景、人物與 IP 完整、沒有粉紅色邊，再提供賓客預覽。'))return;
             try {
-                const response=await fetch(`${API_BASE_URL}/api/admin/approve-result/${taskId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({choice,confirmed:true})});
+                const response=await adminFetch(`${API_BASE_URL}/api/admin/approve-result/${taskId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({choice,confirmed:true})});
                 const data=await response.json();if(!response.ok||!data.success)throw Error(data.error||'確認失敗');
                 await fetchAllTasks();
             }catch(error){alert(error.message);}
@@ -129,10 +253,12 @@
         }
 
         async function handleImageFileInject(file, taskId, type) {
+            const uploadToken = authToken;
             compressAndResizeImage(file, async (compressedBase64) => {
+                if (!authToken || authToken !== uploadToken) return;
                 const bodyData = {}; bodyData[`resultImage${type}`] = compressedBase64;
                 try {
-                    const res = await fetch(`${API_BASE_URL}/api/admin/upload-result-dual/${taskId}`, {
+                    const res = await adminFetch(`${API_BASE_URL}/api/admin/upload-result-dual/${taskId}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData)
                     });
                     const data=await res.json();
@@ -152,7 +278,7 @@
 
         async function fetchSourceImageIncrementally(taskId) {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/task-source-image/${taskId}`);
+                const res = await adminFetch(`${API_BASE_URL}/api/admin/task-source-image/${taskId}`);
                 const data = await res.json();
                 if (data.success && data.sourceImage) {
                     localTasksCache[taskId].sourceImage = data.sourceImage;
@@ -163,7 +289,7 @@
 
         async function fetchResultImageIncrementally(taskId) {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/task-result-images/${taskId}`);
+                const res = await adminFetch(`${API_BASE_URL}/api/admin/task-result-images/${taskId}`);
                 const data = await res.json();
                 if (data.success) {
                     if (data.resultImageA) localTasksCache[taskId].resultImageA = data.resultImageA;
@@ -174,11 +300,13 @@
         }
 
         async function fetchAllTasks() {
+            if (!authToken) return;
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/all-tasks?lightweight=true`);
+                const res = await adminFetch(`${API_BASE_URL}/api/admin/all-tasks?lightweight=true`);
                 const data = await res.json();
                 if (data.success) {
-                    data.tasks.forEach(t => { 
+                    data.tasks.filter(t => /^\d{3,}$/.test(t.id)).forEach(t => {
+                        if (!['A', 'B'].includes(t.chosenDesign)) t.chosenDesign = null; 
                         const isNewTask = !localTasksCache[t.id];
                         if (isNewTask) { t.processStatus = t.processStatus || '製作中'; t.remark = t.remark || ''; } 
                         else {
@@ -197,6 +325,7 @@
         }
 
         function renderTasks(tasks) {
+            if (!authToken) return;
             const activeEl = document.activeElement;
             if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) return;
             const container = document.getElementById('tasks-container');
@@ -204,8 +333,8 @@
 
             container.innerHTML = tasks.map(task => {
                 const currentStatus = task.processStatus || '製作中';
-                const currentRemark = task.remark || '';
-                const sceneName = task.sceneName || '舊版未指定情境';
+                const currentRemark = escapeHtml(task.remark || '');
+                const sceneName = escapeHtml(task.sceneName || '舊版未指定情境');
                 const userChoiceHtml = task.chosenDesign 
                     ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-black text-xs"><i class="fa-solid fa-circle-check mr-1"></i> 已確認合影</span>`
                     : `<span class="text-amber-400 font-bold animate-pulse text-xs"><i class="fa-solid fa-hourglass-start mr-1"></i> 等待賓客確認...</span>`;
@@ -215,7 +344,7 @@
                     const image=task[`resultImage${side}`],review=task[`printStatus${side}`]==='review';
                     const label=single?'合影':`${side} 款`;
                     return `<div class="flex flex-col items-center gap-2 w-full">
-                        ${image?`<img src="${image}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
+                        ${image?`<img src="${escapeHtml(image)}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
                         ${image?`<button onclick="downloadResultImage('${task.id}','${side}')" class="text-xs text-cyan-300 underline">下載${review?'待確認':'預覽'}圖檔</button>`:''}
                         ${review?'<span class="text-xs text-amber-400">需確認背景、色邊與完整構圖</span>':''}
                         ${review && image?.startsWith('data:image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，可供印製</button>`:''}
@@ -228,7 +357,7 @@
                 const finalResultHtml = task.chosenDesign ? (
                     chosenImgSrc ? `
                         <span class="text-[10px] font-bold text-emerald-400 mb-1 text-center w-full block font-sans"><i class="fa-solid fa-trophy mr-1 text-emerald-400"></i> 賓客已確認</span>
-                        <img src="${chosenImgSrc}" class="w-24 h-24 object-contain bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] mx-auto" />
+                        <img src="${escapeHtml(chosenImgSrc)}" class="w-24 h-24 object-contain bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] mx-auto" />
                         <button onclick="downloadResultImage('${task.id}', '${task.chosenDesign}')" class="w-full mt-2 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1 border border-emerald-500/50"><i class="fa-solid fa-download"></i> ${needsReview ? '下載待確認圖檔' : '下載印製圖檔'}</button>
                         ${needsReview ? '<p class="text-amber-400 text-xs mt-1">需檢查背景與裁切；此檔不保證可直接印製</p>' : ''}
                     ` : `<div class="w-24 h-24 rounded-xl border-2 border-dashed border-emerald-500 flex flex-col items-center justify-center text-emerald-400 mx-auto bg-emerald-950/20"><i class="fa-solid fa-circle-notch animate-spin text-xl mb-1 text-emerald-400"></i><span class="text-[9px] text-emerald-400">同步中...</span></div>`
@@ -240,11 +369,11 @@
                         <div class="text-center w-full">
                             <span class="text-[10px] font-mono tracking-widest text-cyan-400 block font-bold">QUEUE NO</span>
                             <span class="text-4xl font-black text-white font-mono glow-text">#${task.id}</span>
-                            <div class="text-[9px] text-slate-500 font-mono mt-1">${task.createdAt || '--:--'}</div>
+                            <div class="text-[9px] text-slate-500 font-mono mt-1">${escapeHtml(task.createdAt || '--:--')}</div>
                             <div class="text-[9px] text-cyan-300 mt-2 leading-tight">${sceneName}</div>
                         </div>
                         <div class="text-center relative w-full mt-1">
-                            ${task.sourceImage ? `<img src="${task.sourceImage}" class="w-20 h-20 mx-auto object-cover rounded-xl border border-slate-700 bg-black shadow-inner" /><button onclick="downloadSourceImage('${task.id}')" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1"><i class="fa-solid fa-download"></i> 下載原照</button>` : `<div class="w-20 h-20 rounded-xl border border-dashed border-slate-700 bg-black flex flex-col items-center justify-center text-slate-500 mx-auto"><i class="fa-solid fa-spinner animate-spin text-lg mb-1"></i><span class="text-[9px]">傳輸中...</span></div>`}
+                            ${task.sourceImage ? `<img src="${escapeHtml(task.sourceImage)}" class="w-20 h-20 mx-auto object-cover rounded-xl border border-slate-700 bg-black shadow-inner" /><button onclick="downloadSourceImage('${task.id}')" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1"><i class="fa-solid fa-download"></i> 下載原照</button>` : `<div class="w-20 h-20 rounded-xl border border-dashed border-slate-700 bg-black flex flex-col items-center justify-center text-slate-500 mx-auto"><i class="fa-solid fa-spinner animate-spin text-lg mb-1"></i><span class="text-[9px]">傳輸中...</span></div>`}
                         </div>
                     </div>
                     <div class="flex flex-col gap-2 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center">
@@ -271,8 +400,7 @@
             }).join('');
         }
 
-        fetchAllTasks();
-        setInterval(fetchAllTasks, 3200);
+        showLogin();
     </script>
 </body>
 </html>

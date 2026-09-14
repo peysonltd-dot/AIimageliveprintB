@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 方舟互動拍貼</title>
+    <title>AI方舟｜航向數位平權</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&family=Noto+Sans+TC:wght@300;500;900&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
     <!-- 純前端 QR Code 生成函式庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
-    <link rel="stylesheet" href="assets/ocean-theme.css?v=14">
+    <link rel="stylesheet" href="assets/ocean-theme.css?v=17">
 </head>
 <body class="ocean-bg text-sky-950 min-h-[100dvh] w-screen flex flex-col">
     <div id="root" class="h-full w-full relative z-10 flex-grow flex flex-col"></div>
@@ -33,13 +33,12 @@
         // 多語系字典 (Traditional Chinese, English, Japanese)
         const TRANSLATIONS = {
             zh: {
-                title: "AI 方舟互動拍貼",
-                giftTitle: "選擇角色・一起航向數位未來",
+                title: "AI方舟・航向數位平權",
                 avatarLabel: "您的 AI 肖像",
                 bagLabel: "與 IP 共乘方舟",
                 startBtn: "開始體驗",
                 startSub: "點擊下方按鈕開始體驗",
-                homeBtn: "返回首頁",
+                homeBtn: "回到首頁",
                 takePhotoBtn: "拍攝照片",
                 cancelBtn: "取消返回首頁",
                 cancelSub: "返回首頁",
@@ -63,8 +62,7 @@
                 ]
             },
             jp: {
-                title: "AI アバター肖像画",
-                giftTitle: "特典引き換え",
+                title: "AI方舟・航向數位平權",
                 avatarLabel: "AI生成アバター",
                 bagLabel: "現場トートバッグ印刷",
                 startBtn: "體驗開始",
@@ -93,8 +91,7 @@
                 ]
             },
             en: {
-                title: "AI Virtual Portrait",
-                giftTitle: "Exclusive Gift",
+                title: "AI方舟・航向數位平權",
                 avatarLabel: "AI Avatar",
                 bagLabel: "Live Printing Bag",
                 startBtn: "START EXPERIENCE",
@@ -124,11 +121,11 @@
             }
         };
 
-        const OceanWait = ({preview}) => (
+        const OceanWait = () => (
             <div className="ocean-voyage" aria-hidden="true">
                 <div className="voyage-sun"></div><div className="voyage-cloud"></div>
                 <div className="voyage-wave"><svg viewBox="0 0 1200 180" preserveAspectRatio="none"><path d="M0 45 Q75 5 150 45 T300 45 T450 45 T600 45 T750 45 T900 45 T1050 45 T1200 45 V180 H0Z" fill="#97d5e8" /></svg></div>
-                <div className="voyage-boat"><img className="boat-ip" src={preview} alt="" /><img className="boat-hull" src="assets/boat.svg" alt="" /></div>
+                <div className="voyage-boat"><img className="boat-hull" src="assets/boat.svg" alt="" /></div>
                 <div className="voyage-wave front"><svg viewBox="0 0 1200 180" preserveAspectRatio="none"><path d="M0 40 Q75 0 150 40 T300 40 T450 40 T600 40 T750 40 T900 40 T1050 40 T1200 40 V180 H0Z" fill="#62bbd6" /><path d="M0 40 Q75 0 150 40 T300 40 T450 40 T600 40 T750 40 T900 40 T1050 40 T1200 40" stroke="#e9fbff" strokeWidth="5" fill="none" /></svg></div>
             </div>
         );
@@ -337,15 +334,12 @@
                     <div className="content-container z-10">
                         
                         {step === 'home' && (
-                            <div className="text-center mt-2 sm:mt-6 flex flex-col items-center justify-start w-full">
-                                <p className="ocean-home-title">
-                                    {t.title}
-                                </p>
-                                <p className="ocean-home-subtitle">
-                                    {t.giftTitle}
-                                </p>
+                            <div className="event-home text-center mt-2 sm:mt-6 flex flex-col items-center justify-start w-full">
+                                <h1 className="event-home-title">
+                                    <img className="event-title-art" src="assets/event-title.svg?v=17" width="1500" height="746" fetchPriority="high" alt="AI方舟・航向數位平權。乘風破浪，共築教育新航線。" />
+                                </h1>
                                 
-                                <div className="w-full max-w-[960px] mb-6 px-4">
+                                <div className="event-choices w-full max-w-[960px] mb-6 px-4">
                                     <p className="text-lg text-sky-950 mb-4">{{zh:"1. 選擇一起乘船的 IP 夥伴",jp:"1. 仲間を選んでください",en:"1. Choose your IP buddy"}[lang]}</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                                     {SCENES.map(scene => (
@@ -356,7 +350,7 @@
                                     </div>
                                 </div>
 
-                                <button onClick={startCamera} disabled={!selectedSceneId} className="disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-4 sm:py-5 rounded-full   flex flex-col items-center gap-1">
+                                <button onClick={startCamera} disabled={!selectedSceneId} className="event-photo-button disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-4 sm:py-5 rounded-full   flex flex-col items-center gap-1">
                                     <span>{{zh:"2. 拍照生成",jp:"2. 写真を撮る",en:"2. Take your photo"}[lang]}</span>
                                 </button>
                             </div>
@@ -389,7 +383,7 @@
 
                         {step === 'loading' && (
                             <div className="loading-screen flex flex-col items-center justify-center">
-                                <OceanWait preview={selectedScene.preview} />
+                                <OceanWait />
                                 <div className="loading-copy">
                                     <h2 className="text-2xl sm:text-4xl font-bold text-sky-950 tracking-wider mb-2 ">{t.loadingTexts[textIndex]}</h2>
                                     <div className="loading-dots" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -466,9 +460,14 @@
 
                                 </div>
 
-                                <div className="flex items-center justify-center gap-3 text-ai-cyan text-sm sm:text-xl font-bold tracking-widest bg-ai-cyan/10 px-6 py-3.5 rounded-full border border-ai-cyan/30 shadow-inner max-w-md mx-auto">
-                                    <i className="fa-solid fa-spinner animate-spin text-lg sm:text-xl"></i>
-                                    <span>{returnCountdown} {t.autoReturn}</span>
+                                <div className="completed-actions">
+                                    <div className="flex items-center justify-center gap-3 text-ai-cyan text-sm sm:text-xl font-bold tracking-widest bg-ai-cyan/10 px-6 py-3.5 rounded-full border border-ai-cyan/30 shadow-inner max-w-md mx-auto">
+                                        <i className="fa-solid fa-spinner animate-spin text-lg sm:text-xl" aria-hidden="true"></i>
+                                        <span>{returnCountdown} {t.autoReturn}</span>
+                                    </div>
+                                    <button type="button" onClick={handleCancelAndGoHome} className="btn-cyan completed-home-button">
+                                        {t.homeBtn}
+                                    </button>
                                 </div>
                             </div>
                         )}

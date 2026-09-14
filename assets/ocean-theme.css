@@ -12,8 +12,8 @@ body {overflow-x:hidden;touch-action:pan-x pan-y;}
 .glow-bar {height:4px;width:68px;margin:12px auto;border-radius:20px;background:#92d4e9;}
 .kv-title {color:#185975;font-family:inherit;}
 .content-container {flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;margin:0 auto;padding:12px 0 28px;}
-.ocean-home-title {font-size:clamp(24px,3vw,42px);font-weight:900;letter-spacing:.08em;line-height:1.5;color:#155674;}
-.ocean-home-subtitle {font-size:clamp(15px,2vw,21px);font-weight:500;color:#557f94;margin:8px 0 28px;letter-spacing:.08em;}
+.event-home-title {width:min(100%,560px);margin:0 0 20px;line-height:0;}
+.event-title-art {display:block;width:100%;height:auto;object-fit:contain;}
 .choice-card {border:2px solid #cee5ef;background:#ffffffd9;transition:transform .2s,border-color .2s,box-shadow .2s;cursor:pointer;position:relative;box-shadow:0 6px 20px #3987a40a;}
 .choice-card:hover {border-color:#82c8df;transform:translateY(-3px);}
 .choice-card.selected {border-color:#2594bc;background:#fff;box-shadow:0 0 0 3px #61bed527,0 10px 26px #388aaa18;}
@@ -46,7 +46,6 @@ button:focus-visible {outline:3px solid #187da6;outline-offset:5px;}
 .voyage-cloud::after {content:'';position:absolute;background:#fff;width:23px;height:23px;border-radius:50%;bottom:2px;left:37px;}
 .voyage-boat {position:absolute;width:57%;height:74%;left:21.5%;top:7%;animation:boat-bob 4.8s ease-in-out infinite;transform-origin:50% 85%;z-index:2;}
 .voyage-boat .boat-hull {position:absolute;bottom:0;width:100%;height:auto;}
-.voyage-boat .boat-ip {position:absolute;width:27%;height:48%;object-fit:contain;left:48%;bottom:37%;}
 .voyage-wave {position:absolute;width:200%;height:45%;bottom:4%;left:0;animation:wave-drift 7s linear infinite;z-index:1;}
 .voyage-wave.front {bottom:-9%;height:35%;z-index:3;animation-duration:5s;animation-direction:reverse;opacity:.88;}
 .voyage-wave svg {width:100%;height:100%;}
@@ -64,3 +63,16 @@ button:focus-visible {outline:3px solid #187da6;outline-offset:5px;}
 .generation-progress {width:min(82vw,520px);height:16px;margin:22px auto 10px;border-radius:999px;background:#d3eaf3;border:1px solid #b9deec;overflow:hidden;box-shadow:inset 0 2px 5px #197fa710;}
 .generation-progress-fill {height:100%;border-radius:inherit;background:linear-gradient(90deg,#5bc8e4,#148bb5);transition:width .55s linear;}
 .generation-progress-note {max-width:520px;margin:0 auto 12px;font-size:14px;line-height:1.65;color:#41677d;}
+
+.completed-actions {display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;}
+.completed-home-button {width:min(100%,320px);min-height:56px;padding:14px 24px;border-radius:18px;font-size:clamp(18px,2vw,22px);font-weight:900;line-height:1.5;}
+
+/* Keep the complete title and the photo control comfortable on landscape tablets. */
+@media(min-width:640px) and (max-height:900px){
+    .event-home {margin-top:0;}
+    .event-home-title {width:min(100%,48.26vh,500px);margin-bottom:12px;}
+    .event-home .choice-card {padding:8px;}
+    .event-home .choice-card img {height:clamp(76px,12vh,112px);}
+    .event-home .event-choices {margin-bottom:12px;}
+    .event-home .event-photo-button {font-size:24px;line-height:1.4;padding:12px 32px;}
+}
