@@ -57,6 +57,7 @@
     </header>
 
     <main class="max-w-7xl mx-auto">
+        <p id="storage-alert" role="alert" hidden class="mb-5 rounded-xl border border-amber-500 p-4 text-amber-200"></p>
         <div id="tasks-container" class="grid grid-cols-1 gap-6 transition-all duration-500"></div>
     </main>
     </div>
@@ -91,6 +92,8 @@
             localTasksCache = {};
             currentUploadTaskId = null;
             document.getElementById('tasks-container').replaceChildren();
+            document.getElementById('storage-alert').hidden = true;
+            document.getElementById('storage-alert').textContent = '';
             document.getElementById('admin-app').hidden = true;
             document.getElementById('login-panel').hidden = false;
             document.getElementById('login-error').textContent = message;
@@ -116,6 +119,11 @@
                 status: response.status,
                 async json() {
                     const data = await response.json();
+                    if (token !== authToken) throw new Error('登入狀態已變更。');
+                    return data;
+                },
+                async blob() {
+                    const data = await response.blob();
                     if (token !== authToken) throw new Error('登入狀態已變更。');
                     return data;
                 }
@@ -205,10 +213,14 @@
             const task = localTasksCache[taskId];
             if (task) {
                 task[field] = value;
-                adminFetch(`${API_BASE_URL}/api/admin/update-meta/${taskId}`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ processStatus: task.processStatus, remark: task.remark })
-                }).catch(e => {});
+                try {
+                    const response = await adminFetch(`${API_BASE_URL}/api/admin/update-meta/${taskId}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ processStatus: task.processStatus, remark: task.remark })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) throw new Error(data.error || '備註保存失敗');
+                } catch (error) { alert(error.message); }
             }
         }
 
@@ -241,11 +253,30 @@
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
-        function downloadResultImage(taskId, choice) {
+        async function downloadResultImage(taskId, choice) {
             const task = localTasksCache[taskId]; if (!task) return;
-            const base64Str = choice === 'A' ? task.resultImageA : task.resultImageB; if (!base64Str) return;
-            const link = document.createElement('a'); link.href = base64Str; link.download = `AI結果_B_#${taskId}_風格${choice}.${base64Str.startsWith('data:image/png') ? 'png' : 'jpg'}`;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            try {
+                const response = await adminFetch(`${API_BASE_URL}/api/admin/download/${taskId}/${choice}`);
+                if (!response.ok) throw new Error((await response.json()).error || '下載失敗');
+                const blob = await response.blob();
+                if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type)) throw new Error('下載檔案格式不正確');
+                const url = URL.createObjectURL(blob), link = document.createElement('a');
+                link.href = url; link.download = `AI結果_B_#${taskId}.${blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg'}`;
+                document.body.appendChild(link); link.click(); link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+            } catch (error) { alert(error.message); }
+        }
+
+        async function retrySave(taskId) {
+            const button = document.getElementById(`save-${taskId}`);
+            if (button) { button.disabled = true; button.textContent = '保存中…'; }
+            try {
+                const response = await adminFetch(`${API_BASE_URL}/api/admin/retry-save/${taskId}`, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || '保存失敗');
+                await fetchAllTasks();
+            } catch (error) { alert(error.message); }
+            finally { if (button) { button.disabled = false; button.textContent = '重新保存（不重新產圖）'; } }
         }
 
         function triggerDualUpload(taskId, targetType) {
@@ -304,6 +335,9 @@
             try {
                 const res = await adminFetch(`${API_BASE_URL}/api/admin/all-tasks?lightweight=true`);
                 const data = await res.json();
+                const storageAlert = document.getElementById('storage-alert');
+                storageAlert.hidden = res.ok && data.storageConfigured !== false;
+                storageAlert.textContent = !res.ok ? (data.error || '訂單讀取失敗') : (data.storageError || '圖片儲存尚未設定，請先完成後端設定。');
                 if (data.success) {
                     data.tasks.filter(t => /^\d{3,}$/.test(t.id)).forEach(t => {
                         if (!['A', 'B'].includes(t.chosenDesign)) t.chosenDesign = null; 
@@ -312,8 +346,12 @@
                         else {
                             t.processStatus = t.processStatus || localTasksCache[t.id].processStatus;
                             if (localTasksCache[t.id].sourceImage) t.sourceImage = localTasksCache[t.id].sourceImage;
-                            if (localTasksCache[t.id].resultImageA) t.resultImageA = localTasksCache[t.id].resultImageA;
-                            if (localTasksCache[t.id].resultImageB) t.resultImageB = localTasksCache[t.id].resultImageB;
+                            ['A', 'B'].forEach(side => {
+                                const key = `resultImage${side}`, previous = localTasksCache[t.id];
+                                if (!t[key] && t[`hasResultImage${side}`] && previous[key]
+                                    && t[key + 'File']?.sha256 === previous[key + 'File']?.sha256
+                                    && t.cloudStatus === previous.cloudStatus) t[key] = previous[key];
+                            });
                         }
                         localTasksCache[t.id] = t; 
                         if (t.hasSourceImage && !localTasksCache[t.id].sourceImage) fetchSourceImageIncrementally(t.id);
@@ -347,7 +385,7 @@
                         ${image?`<img src="${escapeHtml(image)}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
                         ${image?`<button onclick="downloadResultImage('${task.id}','${side}')" class="text-xs text-cyan-300 underline">下載${review?'待確認':'預覽'}圖檔</button>`:''}
                         ${review?'<span class="text-xs text-amber-400">需確認背景、色邊與完整構圖</span>':''}
-                        ${review && image?.startsWith('data:image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，可供印製</button>`:''}
+                        ${review && (image?.startsWith('data:image/png') || task[`resultImage${side}File`]?.mime === 'image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，可供印製</button>`:''}
                         <button onclick="triggerDualUpload('${task.id}','${side}')" class="upload-zone border border-dashed border-cyan-500/40 rounded p-2 text-xs">補傳${label}</button>
                     </div>`;
                 }).join('');
@@ -382,6 +420,11 @@
                     </div>
                     <div class="flex flex-col gap-1 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center items-center">${finalResultHtml}${retryHtml}</div>
                     <div class="flex-grow flex flex-col gap-3 min-w-[200px] justify-center">
+                        <div class="text-sm ${task.cloudStatus === 'saved' ? 'text-emerald-300' : 'text-amber-300'}">
+                            ${task.cloudStatus === 'saved' ? '✓ 已保存至雲端' : task.cloudStatus === 'saving' ? '正在保存至雲端…' : task.cloudStatus === 'failed' ? '⚠ 雲端保存未完成' : '舊資料，尚未確認圖片保存'}
+                            ${task.cloudError ? `<p class="mt-1 text-xs">${escapeHtml(task.cloudError)}</p>` : ''}
+                            ${['failed', 'legacy'].includes(task.cloudStatus) ? `<button id="save-${task.id}" onclick="retrySave('${task.id}')" class="mt-2 block border border-amber-400 rounded px-3 py-2 text-xs">重新保存（不重新產圖）</button>` : ''}
+                        </div>
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 block mb-1">任務進度狀態</label>
                             <select onchange="updateTaskMeta('${task.id}', 'processStatus', this.value)" class="cyber-select w-full bg-slate-900 border border-slate-700 text-sm text-slate-200">
