@@ -15,6 +15,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
     <link rel="stylesheet" href="assets/ocean-theme.css?v=18">
+    <style>
+        /* Compact vector branding for camera and generation screens. */
+        .event-process-title {width:min(72vw,320px,30vh);margin:0 0 14px;line-height:0;flex-shrink:0;}
+        .camera-screen .camera-container {width:min(86vw,740px,48vh);}
+        .camera-screen .camera-container + div {margin-top:18px;}
+        .loading-screen .ocean-voyage {width:min(100%,640px,56vh);flex-shrink:0;}
+        .loading-screen .loading-copy {margin:8px 0 12px;}
+        .loading-screen .loading-number {padding:10px 28px;margin-bottom:14px;}
+        @media(max-width:639px) {
+            .event-process-title {width:min(72vw,280px,30vh);}
+        }
+    </style>
 </head>
 <body class="ocean-bg text-sky-950 min-h-[100dvh] w-screen flex flex-col">
     <div id="root" class="h-full w-full relative z-10 flex-grow flex flex-col"></div>
@@ -357,7 +369,8 @@
                         )}
 
                         {step === 'camera' && (
-                            <div className="flex flex-col items-center w-full">
+                            <div className="camera-screen flex flex-col items-center w-full">
+                                <h1 className="event-process-title"><img className="event-title-art" src="assets/event-title.svg?v=17" width="1500" height="746" alt="AI方舟・航向數位平權。乘風破浪，共築教育新航線。" /></h1>
                                 <div className="w-full max-w-[760px] mb-4 ocean-surface border border-ai-cyan/50 rounded-2xl px-5 py-4 text-center">
                                     <p className="text-sky-950 text-sm sm:text-lg">{selectedScene.guide[lang]}</p>
                                 </div>
@@ -383,6 +396,7 @@
 
                         {step === 'loading' && (
                             <div className="loading-screen flex flex-col items-center justify-center">
+                                <h1 className="event-process-title"><img className="event-title-art" src="assets/event-title.svg?v=17" width="1500" height="746" alt="AI方舟・航向數位平權。乘風破浪，共築教育新航線。" /></h1>
                                 <OceanWait />
                                 <div className="loading-copy">
                                     <h2 className="text-2xl sm:text-4xl font-bold text-sky-950 tracking-wider mb-2 ">{t.loadingTexts[textIndex]}</h2>
