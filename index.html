@@ -26,6 +26,14 @@
         @media(max-width:639px) {
             .event-process-title {width:min(72vw,280px,30vh);}
         }
+        .privacy-consent {width:min(100%,760px);margin:0 auto 18px;text-align:left;font-size:14px;line-height:1.7;}
+        .privacy-policy {background:#ffffffbd;border:1px solid #bedde9;border-radius:14px;padding:12px 16px;}
+        .privacy-policy summary {cursor:pointer;color:#176c92;font-weight:700;}
+        .privacy-policy p {margin:12px 0 0;}
+        .privacy-checkbox {display:flex;align-items:flex-start;gap:12px;padding:14px 4px 4px;cursor:pointer;}
+        .privacy-checkbox input {width:22px;height:22px;flex-shrink:0;margin-top:2px;accent-color:#167fa7;}
+        .privacy-checkbox input:focus-visible {outline:3px solid #187da6;outline-offset:3px;}
+        .privacy-hint {margin:4px 0 0 38px;color:#41677d;font-size:13px;}
     </style>
 </head>
 <body class="ocean-bg text-sky-950 min-h-[100dvh] w-screen flex flex-col">
@@ -144,6 +152,8 @@
 
         const App = () => {
             const [step, setStep] = useState('home');
+            const [privacyAccepted, setPrivacyAccepted] = useState(false);
+            useEffect(() => { if (step === 'home') setPrivacyAccepted(false); }, [step]);
             const [progress, setProgress] = useState(0);
             useEffect(() => {
                 if (step !== 'loading') return;
@@ -174,6 +184,7 @@
             const [returnCountdown, setReturnCountdown] = useState(15);
 
             const startCamera = async () => {
+                if (!selectedSceneId || !privacyAccepted) return;
                 try {
                     setCameraError(false);
                     const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -208,6 +219,7 @@
             };
 
             const capture = async () => {
+                if (!privacyAccepted) return;
                 const video = videoRef.current;
                 const canvas = canvasRef.current;
                 if (!video || !canvas) return;
@@ -362,7 +374,22 @@
                                     </div>
                                 </div>
 
-                                <button onClick={startCamera} disabled={!selectedSceneId} className="event-photo-button disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-4 sm:py-5 rounded-full   flex flex-col items-center gap-1">
+                                <div className="privacy-consent">
+                                    <details className="privacy-policy">
+                                        <summary>{{zh:'隱私權政策與照片使用說明（點此閱讀）',jp:'プライバシーと写真の利用について（開く）',en:'Privacy and photo use notice (read more)'}[lang]}</summary>
+                                        <div id="privacy-policy-text">
+                                            <p>{{zh:'本活動由沛森顧問有限公司提供拍照與 AI 合影服務。您拍攝的照片會傳送至後端及 Leonardo AI 服務，用於生成您與所選角色的合影；照片、生成結果及任務資料會使用 Google Firebase 雲端服務儲存，供本次活動預覽、下載、工作人員處理與客製印製使用。',jp:'本イベントの撮影・AIイラストサービスは沛森顧問有限公司が提供します。撮影した写真はサーバーおよびLeonardo AIに送信され、選んだキャラクターとのイラスト生成に使用されます。写真、生成画像、処理データはGoogle Firebaseに保存され、本イベントでのプレビュー、ダウンロード、スタッフによる処理と印刷に使用されます。',en:'Peyson Ltd. provides this event photo and AI illustration service. Your photo is sent to our server and Leonardo AI to create an illustration with your chosen character. Photos, generated images and task data are stored using Google Firebase for event previews, downloads, staff processing and custom printing.'}[lang]}</p>
+                                            <p>{{zh:'您可自行決定是否參加；未勾選同意時，不會啟動相機或上傳照片。如需詢問資料使用、保存期限或申請刪除，請洽現場工作人員。若由未成年人參加，請由家長或監護人閱讀並同意。',jp:'参加は任意です。同意するまでカメラは起動せず、写真も送信されません。データの利用、保存期間、削除についてはスタッフにお問い合わせください。未成年の方は保護者の確認と同意が必要です。',en:'Participation is optional. The camera will not start and photos will not be uploaded until you agree. Ask event staff about data use, retention or deletion. A parent or guardian should review and agree for a minor.'}[lang]}</p>
+                                        </div>
+                                    </details>
+                                    <label className="privacy-checkbox">
+                                        <input type="checkbox" checked={privacyAccepted} onChange={event => setPrivacyAccepted(event.target.checked)} />
+                                        <span>{{zh:'我已閱讀並同意隱私權政策及上述照片使用方式',jp:'プライバシーの説明を読み、上記の写真利用に同意します',en:'I have read and agree to the privacy notice and photo use described above'}[lang]}</span>
+                                    </label>
+                                    {!privacyAccepted && <p className="privacy-hint">{{zh:'請先閱讀並勾選同意，再開始拍照',jp:'内容を確認し、同意にチェックしてから撮影してください',en:'Please read and check the agreement before taking your photo'}[lang]}</p>}
+                                </div>
+
+                                <button onClick={startCamera} disabled={!selectedSceneId || !privacyAccepted} className="event-photo-button disabled:opacity-40 disabled:cursor-not-allowed btn-cyan text-xl sm:text-3xl md:text-4xl font-black px-12 py-4 sm:py-5 rounded-full   flex flex-col items-center gap-1">
                                     <span>{{zh:"2. 拍照生成",jp:"2. 写真を撮る",en:"2. Take your photo"}[lang]}</span>
                                 </button>
                             </div>
