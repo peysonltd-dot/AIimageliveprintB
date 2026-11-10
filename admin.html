@@ -92,6 +92,7 @@
             localTasksCache = {};
             currentUploadTaskId = null;
             document.getElementById('tasks-container').replaceChildren();
+            delete document.getElementById('tasks-container').dataset.renderedMarkup;
             document.getElementById('storage-alert').hidden = true;
             document.getElementById('storage-alert').textContent = '';
             document.getElementById('admin-app').hidden = true;
@@ -155,7 +156,7 @@
                 document.getElementById('login-panel').hidden = true;
                 document.getElementById('admin-app').hidden = false;
                 expiryTimer = setTimeout(() => showLogin('登入已逾時，請重新輸入密碼。'), Math.min(data.expiresAt - Date.now(), 12 * 60 * 60 * 1000));
-                refreshTimer = setInterval(fetchAllTasks, 3200);
+                refreshTimer = setInterval(fetchAllTasks, 5000);
                 await fetchAllTasks();
             } catch (error) {
                 showLogin(error instanceof TypeError ? '暫時無法連線，請稍後再試。' : error.message);
@@ -307,7 +308,10 @@
             });
         });
 
+        const sourceRequests = new Set();
         async function fetchSourceImageIncrementally(taskId) {
+            if (sourceRequests.has(taskId)) return;
+            sourceRequests.add(taskId);
             try {
                 const res = await adminFetch(`${API_BASE_URL}/api/admin/task-source-image/${taskId}`);
                 const data = await res.json();
@@ -315,7 +319,8 @@
                     localTasksCache[taskId].sourceImage = data.sourceImage;
                     renderTasks(Object.values(localTasksCache).sort((a, b) => b.id.localeCompare(a.id)));
                 }
-            } catch (e) {}
+            } catch (e) { alert('原照讀取失敗，請再點一次重試。'); }
+            finally { sourceRequests.delete(taskId); }
         }
 
         async function fetchResultImageIncrementally(taskId) {
@@ -330,8 +335,10 @@
             } catch (e) {}
         }
 
+        let listRequestBusy = false;
         async function fetchAllTasks() {
-            if (!authToken) return;
+            if (!authToken || document.hidden || listRequestBusy) return;
+            listRequestBusy = true;
             try {
                 const res = await adminFetch(`${API_BASE_URL}/api/admin/all-tasks?lightweight=true`);
                 const data = await res.json();
@@ -354,12 +361,13 @@
                             });
                         }
                         localTasksCache[t.id] = t; 
-                        if (t.hasSourceImage && !localTasksCache[t.id].sourceImage) fetchSourceImageIncrementally(t.id);
+                        // Original photos are loaded only when staff request them.
                         if ((t.hasResultImageA && !localTasksCache[t.id].resultImageA) || (t.hasResultImageB && !localTasksCache[t.id].resultImageB)) fetchResultImageIncrementally(t.id);
                     });
                     renderTasks(Object.values(localTasksCache).sort((a, b) => b.id.localeCompare(a.id)));
                 }
             } catch (e) {}
+            finally { listRequestBusy = false; }
         }
 
         function renderTasks(tasks) {
@@ -369,7 +377,7 @@
             const container = document.getElementById('tasks-container');
             if (tasks.length === 0) { container.innerHTML = `<div class="text-center py-12 text-slate-500 border border-dashed border-slate-800 rounded-2xl w-full">尚無排隊訂單</div>`; return; }
 
-            container.innerHTML = tasks.map(task => {
+            const nextMarkup = tasks.map(task => {
                 const currentStatus = task.processStatus || '製作中';
                 const currentRemark = escapeHtml(task.remark || '');
                 const sceneName = escapeHtml(task.sceneName || '舊版未指定情境');
@@ -382,7 +390,7 @@
                     const image=task[`resultImage${side}`],review=task[`printStatus${side}`]==='review';
                     const label=single?'合影':`${side} 款`;
                     return `<div class="flex flex-col items-center gap-2 w-full">
-                        ${image?`<img src="${escapeHtml(image)}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
+                        ${image?`<img loading="lazy" decoding="async" src="${escapeHtml(image)}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
                         ${image?`<button onclick="downloadResultImage('${task.id}','${side}')" class="text-xs text-cyan-300 underline">下載${review?'待確認':'預覽'}圖檔</button>`:''}
                         ${review?'<span class="text-xs text-amber-400">需確認背景、色邊與完整構圖</span>':''}
                         ${review && (image?.startsWith('data:image/png') || task[`resultImage${side}File`]?.mime === 'image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，可供印製</button>`:''}
@@ -395,7 +403,7 @@
                 const finalResultHtml = task.chosenDesign ? (
                     chosenImgSrc ? `
                         <span class="text-[10px] font-bold text-emerald-400 mb-1 text-center w-full block font-sans"><i class="fa-solid fa-trophy mr-1 text-emerald-400"></i> 賓客已確認</span>
-                        <img src="${escapeHtml(chosenImgSrc)}" class="w-24 h-24 object-contain bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] mx-auto" />
+                        <img loading="lazy" decoding="async" src="${escapeHtml(chosenImgSrc)}" class="w-24 h-24 object-contain bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] mx-auto" />
                         <button onclick="downloadResultImage('${task.id}', '${task.chosenDesign}')" class="w-full mt-2 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1 border border-emerald-500/50"><i class="fa-solid fa-download"></i> ${needsReview ? '下載待確認圖檔' : '下載印製圖檔'}</button>
                         ${needsReview ? '<p class="text-amber-400 text-xs mt-1">需檢查背景與裁切；此檔不保證可直接印製</p>' : ''}
                     ` : `<div class="w-24 h-24 rounded-xl border-2 border-dashed border-emerald-500 flex flex-col items-center justify-center text-emerald-400 mx-auto bg-emerald-950/20"><i class="fa-solid fa-circle-notch animate-spin text-xl mb-1 text-emerald-400"></i><span class="text-[9px] text-emerald-400">同步中...</span></div>`
@@ -411,7 +419,7 @@
                             <div class="text-[9px] text-cyan-300 mt-2 leading-tight">${sceneName}</div>
                         </div>
                         <div class="text-center relative w-full mt-1">
-                            ${task.sourceImage ? `<img src="${escapeHtml(task.sourceImage)}" class="w-20 h-20 mx-auto object-cover rounded-xl border border-slate-700 bg-black shadow-inner" /><button onclick="downloadSourceImage('${task.id}')" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1"><i class="fa-solid fa-download"></i> 下載原照</button>` : `<div class="w-20 h-20 rounded-xl border border-dashed border-slate-700 bg-black flex flex-col items-center justify-center text-slate-500 mx-auto"><i class="fa-solid fa-spinner animate-spin text-lg mb-1"></i><span class="text-[9px]">傳輸中...</span></div>`}
+                            ${task.sourceImage ? `<img loading="lazy" decoding="async" src="${escapeHtml(task.sourceImage)}" class="w-20 h-20 mx-auto object-cover rounded-xl border border-slate-700 bg-black shadow-inner" /><button onclick="downloadSourceImage('${task.id}')" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1"><i class="fa-solid fa-download"></i> 下載原照</button>` : `<button onclick="fetchSourceImageIncrementally(\'${task.id}\')" class="w-20 h-20 rounded-xl border border-slate-700 text-cyan-300 text-xs mx-auto">點此載入原照</button>`}
                         </div>
                     </div>
                     <div class="flex flex-col gap-2 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center">
@@ -441,8 +449,13 @@
                     </div>
                 </div>`;
             }).join('');
+            if (container.dataset.renderedMarkup !== nextMarkup) {
+                container.innerHTML = nextMarkup;
+                container.dataset.renderedMarkup = nextMarkup;
+            }
         }
 
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchAllTasks(); });
         showLogin();
     </script>
 </body>
