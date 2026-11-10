@@ -48,7 +48,7 @@
         <div class="flex flex-wrap items-center gap-3">
             <button type="button" onclick="logoutAdmin()" class="border border-slate-600 hover:bg-slate-800 font-bold px-4 py-2 rounded-lg text-sm">登出</button>
             <button onclick="fetchAllTasks()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow-[0_0_15px_rgba(0,242,255,0.3)]">
-                <i class="fa-solid fa-arrows-rotate"></i> 重新整理數據
+                <i class="fa-solid fa-arrows-rotate"></i> 重新整理
             </button>
             <button onclick="executeResetAll()" class="bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 font-bold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 border border-rose-500/40">
                 <i class="fa-solid fa-trash-can"></i> 重製機台 B 排隊
@@ -58,6 +58,7 @@
 
     <main class="max-w-7xl mx-auto">
         <p id="storage-alert" role="alert" hidden class="mb-5 rounded-xl border border-amber-500 p-4 text-amber-200"></p>
+        <p class="text-sm text-slate-400 mb-4">最新 50 筆訂單 · 客人確認後，按「下載列印圖」</p>
         <div id="tasks-container" class="grid grid-cols-1 gap-6 transition-all duration-500"></div>
     </main>
     </div>
@@ -315,7 +316,7 @@
             try {
                 const res = await adminFetch(`${API_BASE_URL}/api/admin/task-source-image/${taskId}`);
                 const data = await res.json();
-                if (data.success && data.sourceImage) {
+                if (data.success && data.sourceImage && localTasksCache[taskId]) {
                     localTasksCache[taskId].sourceImage = data.sourceImage;
                     renderTasks(Object.values(localTasksCache).sort((a, b) => b.id.localeCompare(a.id)));
                 }
@@ -327,7 +328,7 @@
             try {
                 const res = await adminFetch(`${API_BASE_URL}/api/admin/task-result-images/${taskId}`);
                 const data = await res.json();
-                if (data.success) {
+                if (data.success && localTasksCache[taskId]) {
                     if (data.resultImageA) localTasksCache[taskId].resultImageA = data.resultImageA;
                     if (data.resultImageB) localTasksCache[taskId].resultImageB = data.resultImageB;
                     renderTasks(Object.values(localTasksCache).sort((a, b) => b.id.localeCompare(a.id)));
@@ -340,13 +341,16 @@
             if (!authToken || document.hidden || listRequestBusy) return;
             listRequestBusy = true;
             try {
-                const res = await adminFetch(`${API_BASE_URL}/api/admin/all-tasks?lightweight=true`);
+                const res = await adminFetch(`${API_BASE_URL}/api/admin/all-tasks?lightweight=true&limit=50`);
                 const data = await res.json();
                 const storageAlert = document.getElementById('storage-alert');
                 storageAlert.hidden = res.ok && data.storageConfigured !== false;
                 storageAlert.textContent = !res.ok ? (data.error || '訂單讀取失敗') : (data.storageError || '圖片儲存尚未設定，請先完成後端設定。');
                 if (data.success) {
-                    data.tasks.filter(t => /^\d{3,}$/.test(t.id)).forEach(t => {
+                    const recent = data.tasks.filter(t => /^\d{3,}$/.test(t.id)).sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,50);
+                    const visibleIds = new Set(recent.map(t=>t.id));
+                    Object.keys(localTasksCache).forEach(id=>{if(!visibleIds.has(id))delete localTasksCache[id];});
+                    recent.forEach(t => {
                         if (!['A', 'B'].includes(t.chosenDesign)) t.chosenDesign = null; 
                         const isNewTask = !localTasksCache[t.id];
                         if (isNewTask) { t.processStatus = t.processStatus || '製作中'; t.remark = t.remark || ''; } 
@@ -377,80 +381,53 @@
             const container = document.getElementById('tasks-container');
             if (tasks.length === 0) { container.innerHTML = `<div class="text-center py-12 text-slate-500 border border-dashed border-slate-800 rounded-2xl w-full">尚無排隊訂單</div>`; return; }
 
-            const nextMarkup = tasks.map(task => {
+
+            const nextMarkup = tasks.slice().sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,50).map(task => {
+                const side = task.chosenDesign || (task.resultImageB ? 'B' : 'A');
+                const image = task['resultImage'+side];
+                const confirmed = !!task.chosenDesign;
                 const currentStatus = task.processStatus || '製作中';
-                const currentRemark = escapeHtml(task.remark || '');
-                const sceneName = escapeHtml(task.sceneName || '舊版未指定情境');
-                const userChoiceHtml = task.chosenDesign 
-                    ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded font-black text-xs"><i class="fa-solid fa-circle-check mr-1"></i> 已確認合影</span>`
-                    : `<span class="text-amber-400 font-bold animate-pulse text-xs"><i class="fa-solid fa-hourglass-start mr-1"></i> 等待賓客確認...</span>`;
-
-                const single=task.styleMode==='chibi-only';
-                const reviewHtml=(single?['B']:['A','B']).map(side=>{
-                    const image=task[`resultImage${side}`],review=task[`printStatus${side}`]==='review';
-                    const label=single?'合影':`${side} 款`;
-                    return `<div class="flex flex-col items-center gap-2 w-full">
-                        ${image?`<img loading="lazy" decoding="async" src="${escapeHtml(image)}" alt="${label}" class="w-full max-w-44 aspect-[4/3] object-contain bg-white rounded-lg" />`:''}
-                        ${image?`<button onclick="downloadResultImage('${task.id}','${side}')" class="text-xs text-cyan-300 underline">下載${review?'待確認':'預覽'}圖檔</button>`:''}
-                        ${review?'<span class="text-xs text-amber-400">需確認背景、色邊與完整構圖</span>':''}
-                        ${review && (image?.startsWith('data:image/png') || task[`resultImage${side}File`]?.mime === 'image/png')?`<button onclick="approveResult('${task.id}','${side}')" class="text-xs border border-amber-400 text-amber-300 rounded p-2">檢查完成，可供印製</button>`:''}
-                        <button onclick="triggerDualUpload('${task.id}','${side}')" class="upload-zone border border-dashed border-cyan-500/40 rounded p-2 text-xs">補傳${label}</button>
-                    </div>`;
-                }).join('');
-                const needsReview=task[`printStatus${task.chosenDesign}`] === 'review';
-                const chosenImgSrc = task.chosenDesign === 'A' ? task.resultImageA : task.resultImageB;
-                const retryHtml=(task.originalGenerationUrlA || task.originalGenerationUrlB) ? `<button id="reprocess-${task.id}" onclick="reprocessTask('${task.id}')" class="mt-2 text-xs border border-cyan-500 rounded p-2 text-cyan-300">重新處理原圖（不重新產圖）</button>` : '';
-                const finalResultHtml = task.chosenDesign ? (
-                    chosenImgSrc ? `
-                        <span class="text-[10px] font-bold text-emerald-400 mb-1 text-center w-full block font-sans"><i class="fa-solid fa-trophy mr-1 text-emerald-400"></i> 賓客已確認</span>
-                        <img loading="lazy" decoding="async" src="${escapeHtml(chosenImgSrc)}" class="w-24 h-24 object-contain bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] mx-auto" />
-                        <button onclick="downloadResultImage('${task.id}', '${task.chosenDesign}')" class="w-full mt-2 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1 border border-emerald-500/50"><i class="fa-solid fa-download"></i> ${needsReview ? '下載待確認圖檔' : '下載印製圖檔'}</button>
-                        ${needsReview ? '<p class="text-amber-400 text-xs mt-1">需檢查背景與裁切；此檔不保證可直接印製</p>' : ''}
-                    ` : `<div class="w-24 h-24 rounded-xl border-2 border-dashed border-emerald-500 flex flex-col items-center justify-center text-emerald-400 mx-auto bg-emerald-950/20"><i class="fa-solid fa-circle-notch animate-spin text-xl mb-1 text-emerald-400"></i><span class="text-[9px] text-emerald-400">同步中...</span></div>`
-                ) : `<span class="text-[10px] font-bold text-amber-400 animate-pulse text-center w-full block mb-1 font-sans"><i class="fa-solid fa-hourglass-half mr-1"></i> 等待選擇</span><div class="w-24 h-24 rounded-xl border-2 border-dashed border-slate-600 flex items-center justify-center text-slate-600 mx-auto"><i class="fa-solid fa-image text-2xl"></i></div>`;
-
+                const review = task['printStatus'+side] === 'review';
+                const canDownload = confirmed && !!image;
                 return `
-                <div class="cyber-card p-4 md:p-5 rounded-2xl flex flex-col md:flex-row gap-6 items-stretch relative overflow-hidden">
-                    <div class="flex flex-col items-center gap-2 w-full md:w-32 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4">
-                        <div class="text-center w-full">
-                            <span class="text-[10px] font-mono tracking-widest text-cyan-400 block font-bold">QUEUE NO</span>
-                            <span class="text-4xl font-black text-white font-mono glow-text">#${task.id}</span>
-                            <div class="text-[9px] text-slate-500 font-mono mt-1">${escapeHtml(task.createdAt || '--:--')}</div>
-                            <div class="text-[9px] text-cyan-300 mt-2 leading-tight">${sceneName}</div>
-                        </div>
-                        <div class="text-center relative w-full mt-1">
-                            ${task.sourceImage ? `<img loading="lazy" decoding="async" src="${escapeHtml(task.sourceImage)}" class="w-20 h-20 mx-auto object-cover rounded-xl border border-slate-700 bg-black shadow-inner" /><button onclick="downloadSourceImage('${task.id}')" class="w-full mt-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold py-1.5 px-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1"><i class="fa-solid fa-download"></i> 下載原照</button>` : `<button onclick="fetchSourceImageIncrementally(\'${task.id}\')" class="w-20 h-20 rounded-xl border border-slate-700 text-cyan-300 text-xs mx-auto">點此載入原照</button>`}
-                        </div>
+                <div class="cyber-card p-5 rounded-2xl flex flex-col md:flex-row gap-6 items-center">
+                    <div class="text-center md:w-32 flex-shrink-0">
+                        <div class="text-4xl font-black text-white">#${task.id}</div>
+                        <div class="text-xs text-slate-400 mt-2">${escapeHtml(task.createdAt || '')}</div>
+                        <div class="text-xs text-cyan-300 mt-2">${escapeHtml(task.sceneName || '')}</div>
                     </div>
-                    <div class="flex flex-col gap-2 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center">
-                        <span class="text-xs font-bold text-slate-300 text-center mb-1">合影檢查與補傳</span>
-                        ${reviewHtml}
+                    <div class="w-full md:w-52 flex-shrink-0">
+                        ${image ? `<img loading="lazy" decoding="async" src="${escapeHtml(image)}" alt="合影預覽" class="w-full h-52 object-contain bg-white rounded-xl" />` : '<div class="h-32 flex items-center justify-center text-slate-400">圖片處理中</div>'}
                     </div>
-                    <div class="flex flex-col gap-1 w-full md:w-40 flex-shrink-0 md:border-r border-slate-700/50 md:pr-4 justify-center items-center">${finalResultHtml}${retryHtml}</div>
-                    <div class="flex-grow flex flex-col gap-3 min-w-[200px] justify-center">
-                        <div class="text-sm ${task.cloudStatus === 'saved' ? 'text-emerald-300' : 'text-amber-300'}">
-                            ${task.cloudStatus === 'saved' ? '✓ 已保存至雲端' : task.cloudStatus === 'saving' ? '正在保存至雲端…' : task.cloudStatus === 'failed' ? '⚠ 雲端保存未完成' : '舊資料，尚未確認圖片保存'}
-                            ${task.cloudError ? `<p class="mt-1 text-xs">${escapeHtml(task.cloudError)}</p>` : ''}
-                            ${['failed', 'legacy'].includes(task.cloudStatus) ? `<button id="save-${task.id}" onclick="retrySave('${task.id}')" class="mt-2 block border border-amber-400 rounded px-3 py-2 text-xs">重新保存（不重新產圖）</button>` : ''}
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 block mb-1">任務進度狀態</label>
-                            <select onchange="updateTaskMeta('${task.id}', 'processStatus', this.value)" class="cyber-select w-full bg-slate-900 border border-slate-700 text-sm text-slate-200">
-                                <option value="製作中" ${currentStatus === '製作中' ? 'selected' : ''}>⏳ 製作中</option>
-                                <option value="已完成" ${currentStatus === '已完成' ? 'selected' : ''}>✅ 已完成</option>
-                                <option value="已取消" ${currentStatus === '已取消' ? 'selected' : ''}>❌ 已取消</option>
+                    <div class="w-full flex-1 min-w-0">
+                        <p class="text-sm mb-3 ${confirmed?'text-emerald-300':'text-amber-300'}">${confirmed?'客人已確認':task.status==='failed'?'生成失敗':'等待客人確認'}</p>
+                        <button ${canDownload ? `onclick="downloadResultImage('${task.id}','${side}')"` : 'disabled'} class="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl py-4 text-xl font-black disabled:opacity-40 disabled:cursor-not-allowed">下載列印圖</button>
+                        ${review && image ? '<p class="text-xs text-slate-400 mt-2">列印前請看一下去背邊緣。</p>' : ''}
+                        ${task.cloudStatus==='failed'?'<p class="text-sm text-amber-300 mt-2">雲端尚未保存，請開啟其他操作重試。</p>':''}
+                        <div class="mt-4 flex items-center gap-3"><label class="text-sm text-slate-300">狀態</label>
+                            <select onchange="updateTaskMeta('${task.id}', 'processStatus', this.value)" class="cyber-select flex-1">
+                                ${['製作中','已完成','已取消'].map(s=>`<option ${currentStatus===s?'selected':''}>${s}</option>`).join('')}
                             </select>
                         </div>
-                        <div class="flex-grow flex flex-col">
-                            <label class="text-[10px] font-bold text-slate-400 block mb-1">任務備註事項</label>
-                            <textarea onchange="updateTaskMeta('${task.id}', 'remark', this.value)" placeholder="輸入備註..." class="cyber-textarea w-full flex-grow min-h-[60px] bg-slate-900 text-slate-200 p-2.5 rounded-lg border border-slate-700 text-xs resize-none">${currentRemark}</textarea>
-                        </div>
-                        <div class="mt-2 flex items-center justify-end border-t border-slate-800 pt-2.5 gap-2"><div class="text-xs text-right">${userChoiceHtml}</div></div>
+                        <details data-task-id="${task.id}" class="mt-4 text-sm text-slate-300">
+                            <summary class="cursor-pointer py-2">其他操作</summary>
+                            <div class="flex flex-wrap gap-3 py-3">
+                                ${task.sourceImage ? `<button onclick="downloadSourceImage('${task.id}')" class="underline">下載原照</button>` : `<button onclick="fetchSourceImageIncrementally('${task.id}')" class="underline">載入原照</button>`}
+                                <button onclick="triggerDualUpload('${task.id}','${side}')" class="underline">補傳合影</button>
+                                ${(task.originalGenerationUrlA || task.originalGenerationUrlB)?`<button id="reprocess-${task.id}" onclick="reprocessTask('${task.id}')" class="underline">重新處理原圖（不重新產圖）</button>`:''}
+                                ${['failed','legacy'].includes(task.cloudStatus)?`<button id="save-${task.id}" onclick="retrySave('${task.id}')" class="underline">重新保存</button>`:''}
+                            </div>
+                            ${task.cloudError?`<p class="text-amber-300 mb-2">${escapeHtml(task.cloudError)}</p>`:''}
+                            <label class="block mb-1">備註</label>
+                            <textarea onchange="updateTaskMeta('${task.id}', 'remark', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2" rows="2">${escapeHtml(task.remark || '')}</textarea>
+                        </details>
                     </div>
                 </div>`;
             }).join('');
             if (container.dataset.renderedMarkup !== nextMarkup) {
+                const openIds = new Set(Array.from(container.querySelectorAll('details[open]')).map(el => el.dataset.taskId));
                 container.innerHTML = nextMarkup;
+                container.querySelectorAll('details').forEach(el => { el.open = openIds.has(el.dataset.taskId); });
                 container.dataset.renderedMarkup = nextMarkup;
             }
         }
