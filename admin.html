@@ -69,8 +69,8 @@
         let localTasksCache = {};
         let currentUploadTaskId = null;
 
-        // Only a short-lived session token lives in this page's memory.
-        // Reloading, leaving the page or signing out requires another login.
+        // Keep the short-lived token in this tab only; never store the password.
+        const ADMIN_SESSION_KEY = 'booth-b-admin-session-v1';
         let authToken = null;
         let authController = null;
         let refreshTimer = null;
@@ -82,7 +82,8 @@
             }[char]));
         }
 
-        function showLogin(message = '') {
+        function showLogin(message = '', keepSession = false) {
+            if (!keepSession) { try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch (_) {} }
             authToken = null;
             if (authController) authController.abort();
             authController = null;
@@ -152,12 +153,7 @@
                 if (!/^[A-Za-z0-9_-]{43}$/.test(data.token) || !Number.isFinite(data.expiresAt) || data.expiresAt <= Date.now()) {
                     throw new Error('登入驗證未完成，請重新登入。');
                 }
-                authToken = data.token;
-                authController = new AbortController();
-                document.getElementById('login-panel').hidden = true;
-                document.getElementById('admin-app').hidden = false;
-                expiryTimer = setTimeout(() => showLogin('登入已逾時，請重新輸入密碼。'), Math.min(data.expiresAt - Date.now(), 12 * 60 * 60 * 1000));
-                refreshTimer = setInterval(fetchAllTasks, 5000);
+                activateSession(data);
                 await fetchAllTasks();
             } catch (error) {
                 showLogin(error instanceof TypeError ? '暫時無法連線，請稍後再試。' : error.message);
@@ -181,8 +177,36 @@
             }
         }
 
-        window.addEventListener('pagehide', () => showLogin());
-        window.addEventListener('pageshow', event => { if (event.persisted) showLogin(); });
+        
+        function activateSession(data) {
+            if (!/^[A-Za-z0-9_-]{43}$/.test(data.token) ||
+                !Number.isFinite(data.expiresAt) || data.expiresAt <= Date.now()) {
+                throw new Error('登入已逾時，請重新輸入密碼。');
+            }
+            clearInterval(refreshTimer);
+            clearTimeout(expiryTimer);
+            authToken = data.token;
+            authController = new AbortController();
+            // Preserve the original expiry; a reload never extends the session.
+            try { sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({token:data.token, expiresAt:data.expiresAt})); } catch (_) {}
+            document.getElementById('login-panel').hidden = true;
+            document.getElementById('admin-app').hidden = false;
+            expiryTimer = setTimeout(() => showLogin('登入已逾時，請重新輸入密碼。'), Math.min(data.expiresAt-Date.now(),12*60*60*1000));
+            refreshTimer = setInterval(fetchAllTasks,5000);
+        }
+
+        function restoreSession() {
+            showLogin('', true);
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || 'null');
+                if (!saved) return;
+                activateSession(saved);
+                fetchAllTasks(); // Server still validates the token; a 401 clears it.
+            } catch (_) { showLogin(); }
+        }
+
+        window.addEventListener('pagehide', () => showLogin('', true));
+        window.addEventListener('pageshow', event => { if (event.persisted) restoreSession(); });
 
         function compressAndResizeImage(file, callback) {
             const reader = new FileReader();
@@ -433,7 +457,7 @@
         }
 
         document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchAllTasks(); });
-        showLogin();
+        restoreSession();
     </script>
 </body>
 </html>
