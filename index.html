@@ -26,6 +26,14 @@
         @media(max-width:639px) {
             .event-process-title {width:min(72vw,280px,30vh);}
         }
+        /* Tall portrait kiosks: keep the experience near the top instead of vertically centered. */
+        @media (min-width:640px) and (min-height:1000px) and (orientation:portrait) {
+            .ocean-shell > .ocean-header {margin:0 auto;}
+            .ocean-shell > .content-container {
+                justify-content:flex-start;
+                padding-top:clamp(24px,5vh,96px);
+            }
+        }
         .privacy-consent {width:min(100%,760px);margin:0 auto 18px;text-align:left;font-size:14px;line-height:1.7;}
         .privacy-policy {background:#ffffffbd;border:1px solid #bedde9;border-radius:14px;padding:12px 16px;}
         .privacy-policy summary {cursor:pointer;color:#176c92;font-weight:700;}
